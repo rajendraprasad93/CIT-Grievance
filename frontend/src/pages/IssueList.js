@@ -1,71 +1,70 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import { Users2, Eye, Filter } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { Users2, Eye, Filter } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { apiGet } from "../lib/api";
 
 function IssueList({ user }) {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    category: '',
-    status: ''
+    category: "",
+    status: "",
   });
 
-  useEffect(() => {
-    fetchIssues();
-  }, [filters]);
-
-  const fetchIssues = async () => {
+  const fetchIssues = useCallback(async () => {
     try {
-      let url = `${BACKEND_URL}/api/issues`;
+      let endpoint = "/api/issues";
       const params = new URLSearchParams();
-      if (filters.category) params.append('category', filters.category);
-      if (filters.status) params.append('status', filters.status);
-      if (params.toString()) url += `?${params.toString()}`;
+      if (filters.category) params.append("category", filters.category);
+      if (filters.status) params.append("status", filters.status);
+      if (params.toString()) endpoint += `?${params.toString()}`;
 
-      const response = await fetch(url, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch issues');
-
-      const data = await response.json();
+      const data = await apiGet(endpoint);
       setIssues(data);
     } catch (error) {
-      console.error('Error fetching issues:', error);
+      console.error("Error fetching issues:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    fetchIssues();
+  }, [fetchIssues]);
 
   const getStatusColor = (status) => {
     const colors = {
-      reported: 'bg-slate-100 text-slate-700 border-slate-200',
-      acknowledged: 'bg-blue-50 text-blue-700 border-blue-200',
-      in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
-      resolved: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      reported: "bg-slate-100 text-slate-700 border-slate-200",
+      acknowledged: "bg-blue-50 text-blue-700 border-blue-200",
+      in_progress: "bg-amber-50 text-amber-700 border-amber-200",
+      resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
     };
     return colors[status] || colors.reported;
   };
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar user={user} />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold mb-2" data-testid="issue-list-title">
+          <h1
+            className="text-3xl font-heading font-bold mb-2"
+            data-testid="issue-list-title"
+          >
             Campus Issues & Signals
           </h1>
           <p className="text-muted-foreground">
-            These are issues raised by students. Add "I'm affected" if it impacts you too.
+            These are issues raised by students. Add "I'm affected" if it
+            impacts you too.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <select
             value={filters.category}
-            onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, category: e.target.value })
+            }
             className="h-10 px-4 rounded-full border border-input bg-background"
             data-testid="category-filter"
           >
@@ -106,7 +105,9 @@ function IssueList({ user }) {
             </div>
           ) : issues.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-xl border border-border">
-              <p className="text-muted-foreground">No issues found with current filters.</p>
+              <p className="text-muted-foreground">
+                No issues found with current filters.
+              </p>
             </div>
           ) : (
             issues.map((issue) => (
@@ -125,8 +126,12 @@ function IssueList({ user }) {
                         </div>
                         <span className="text-muted-foreground">affected</span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(issue.status)}`}>
-                        {issue.status.replace('_', ' ').toUpperCase()}
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                          issue.status
+                        )}`}
+                      >
+                        {issue.status.replace("_", " ").toUpperCase()}
                       </span>
                     </div>
 
@@ -149,9 +154,19 @@ function IssueList({ user }) {
                   </div>
 
                   <div className="text-right text-sm text-muted-foreground">
-                    <p>Reported {formatDistanceToNow(new Date(issue.created_at), { addSuffix: true })}</p>
+                    <p>
+                      Reported{" "}
+                      {formatDistanceToNow(new Date(issue.created_at), {
+                        addSuffix: true,
+                      })}
+                    </p>
                     {issue.updated_at !== issue.created_at && (
-                      <p className="text-xs">Updated {formatDistanceToNow(new Date(issue.updated_at), { addSuffix: true })}</p>
+                      <p className="text-xs">
+                        Updated{" "}
+                        {formatDistanceToNow(new Date(issue.updated_at), {
+                          addSuffix: true,
+                        })}
+                      </p>
                     )}
                   </div>
                 </div>

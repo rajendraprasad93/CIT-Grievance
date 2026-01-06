@@ -1,105 +1,108 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import { Bookmark, Eye, Calendar, Award } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { Bookmark, Eye, Calendar, Award } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { apiGet } from "../lib/api";
 
 function Opportunities({ user }) {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState("");
 
-  useEffect(() => {
-    fetchOpportunities();
-  }, [filter]);
-
-  const fetchOpportunities = async () => {
+  const fetchOpportunities = useCallback(async () => {
     try {
-      let url = `${BACKEND_URL}/api/opportunities`;
-      if (filter) url += `?opp_type=${filter}`;
+      let endpoint = "/api/opportunities";
+      if (filter) endpoint += `?opp_type=${filter}`;
 
-      const response = await fetch(url, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch opportunities');
-
-      const data = await response.json();
+      const data = await apiGet(endpoint);
       setOpportunities(data);
     } catch (error) {
-      console.error('Error fetching opportunities:', error);
+      console.error("Error fetching opportunities:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchOpportunities();
+  }, [fetchOpportunities]);
 
   const getTypeColor = (type) => {
     const colors = {
-      scholarship: 'bg-purple-50 text-purple-700 border-purple-200',
-      internship: 'bg-blue-50 text-blue-700 border-blue-200',
-      workshop: 'bg-green-50 text-green-700 border-green-200',
-      resource: 'bg-amber-50 text-amber-700 border-amber-200'
+      scholarship: "bg-purple-50 text-purple-700 border-purple-200",
+      internship: "bg-blue-50 text-blue-700 border-blue-200",
+      workshop: "bg-green-50 text-green-700 border-green-200",
+      resource: "bg-amber-50 text-amber-700 border-amber-200",
     };
     return colors[type] || colors.internship;
   };
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar user={user} />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold mb-2" data-testid="opportunities-title">
+          <h1
+            className="text-3xl font-heading font-bold mb-2"
+            data-testid="opportunities-title"
+          >
             Opportunities & Resources
           </h1>
           <p className="text-muted-foreground">
-            Discover scholarships, internships, and resources for your academic journey.
+            Discover scholarships, internships, and resources for your academic
+            journey.
           </p>
         </div>
 
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2" data-testid="opportunity-filters">
+        <div
+          className="flex gap-2 mb-6 overflow-x-auto pb-2"
+          data-testid="opportunity-filters"
+        >
           <button
-            onClick={() => setFilter('')}
+            onClick={() => setFilter("")}
             className={`px-4 py-2 rounded-full font-medium transition-colors whitespace-nowrap ${
-              filter === '' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              filter === ""
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
           >
             All
           </button>
           <button
-            onClick={() => setFilter('scholarship')}
+            onClick={() => setFilter("scholarship")}
             className={`px-4 py-2 rounded-full font-medium transition-colors whitespace-nowrap ${
-              filter === 'scholarship' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              filter === "scholarship"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
           >
             Scholarships
           </button>
           <button
-            onClick={() => setFilter('internship')}
+            onClick={() => setFilter("internship")}
             className={`px-4 py-2 rounded-full font-medium transition-colors whitespace-nowrap ${
-              filter === 'internship' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              filter === "internship"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
           >
             Internships
           </button>
           <button
-            onClick={() => setFilter('workshop')}
+            onClick={() => setFilter("workshop")}
             className={`px-4 py-2 rounded-full font-medium transition-colors whitespace-nowrap ${
-              filter === 'workshop' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              filter === "workshop"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             }`}
           >
             Workshops
           </button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="opportunities-list">
+        <div
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          data-testid="opportunities-list"
+        >
           {loading ? (
             <div className="col-span-full flex justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
@@ -117,11 +120,18 @@ function Opportunities({ user }) {
                 data-testid={`opportunity-card-${opp.opp_id}`}
               >
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(opp.opp_type)}`}>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium border ${getTypeColor(
+                      opp.opp_type
+                    )}`}
+                  >
                     {opp.opp_type.toUpperCase()}
                   </span>
                   {opp.verified && (
-                    <div className="flex items-center gap-1 text-accent" title="Verified by Career Cell">
+                    <div
+                      className="flex items-center gap-1 text-accent"
+                      title="Verified by Career Cell"
+                    >
                       <Award size={16} />
                     </div>
                   )}
@@ -135,26 +145,14 @@ function Opportunities({ user }) {
                   {opp.description}
                 </p>
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {opp.department.slice(0, 3).map((dept, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs"
-                    >
-                      {dept}
-                    </span>
-                  ))}
-                  {opp.department.length > 3 && (
-                    <span className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
-                      +{opp.department.length - 3} more
-                    </span>
-                  )}
+                <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                  <span className="font-medium">{opp.organization}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Bookmark size={14} />
-                    <span>{opp.saved_count} saved</span>
+                    <span>{opp.saved_count || 0} saved</span>
                   </div>
                   {opp.deadline && (
                     <div className="flex items-center gap-1 text-destructive">

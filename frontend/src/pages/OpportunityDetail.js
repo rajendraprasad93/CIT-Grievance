@@ -1,51 +1,45 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import { Bookmark, ExternalLink, Calendar, Users2, Award, MessageCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link, useOutletContext } from "react-router-dom";
+import {
+  Bookmark,
+  ExternalLink,
+  Calendar,
+  Users2,
+  Award,
+  MessageCircle,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { apiGet, apiPost } from "../lib/api";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-function OpportunityDetail({ user }) {
+function OpportunityDetail() {
+  const { user } = useOutletContext();
   const { oppId } = useParams();
   const [opportunity, setOpportunity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  useEffect(() => {
-    fetchOpportunityDetail();
-  }, [oppId]);
-
-  const fetchOpportunityDetail = async () => {
+  const fetchOpportunityDetail = useCallback(async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/opportunities/${oppId}`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch opportunity');
-      
-      const data = await response.json();
+      const data = await apiGet(`/api/opportunities/${oppId}`);
       setOpportunity(data);
     } catch (error) {
-      console.error('Error fetching opportunity:', error);
+      console.error("Error fetching opportunity:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [oppId]);
+
+  useEffect(() => {
+    fetchOpportunityDetail();
+  }, [fetchOpportunityDetail, oppId]);
 
   const handleToggleSave = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/opportunities/${oppId}/save`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      if (!response.ok) throw new Error('Failed to toggle save');
-      
+      await apiPost(`/api/opportunities/${oppId}/save`, {});
       fetchOpportunityDetail();
     } catch (error) {
-      console.error('Error toggling save:', error);
+      console.error("Error toggling save:", error);
     }
   };
 
@@ -55,23 +49,16 @@ function OpportunityDetail({ user }) {
 
     setSubmittingComment(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          entity_type: 'opportunity',
-          entity_id: oppId,
-          text: commentText
-        })
+      await apiPost("/api/comments", {
+        entity_type: "opportunity",
+        entity_id: oppId,
+        text: commentText,
       });
 
-      if (!response.ok) throw new Error('Failed to post comment');
-
-      setCommentText('');
+      setCommentText("");
       fetchOpportunityDetail();
     } catch (error) {
-      console.error('Error posting comment:', error);
+      console.error("Error posting comment:", error);
     } finally {
       setSubmittingComment(false);
     }
@@ -79,10 +66,10 @@ function OpportunityDetail({ user }) {
 
   const getTypeColor = (type) => {
     const colors = {
-      scholarship: 'bg-purple-50 text-purple-700 border-purple-200',
-      internship: 'bg-blue-50 text-blue-700 border-blue-200',
-      workshop: 'bg-green-50 text-green-700 border-green-200',
-      resource: 'bg-amber-50 text-amber-700 border-amber-200'
+      scholarship: "bg-purple-50 text-purple-700 border-purple-200",
+      internship: "bg-blue-50 text-blue-700 border-blue-200",
+      workshop: "bg-green-50 text-green-700 border-green-200",
+      resource: "bg-amber-50 text-amber-700 border-amber-200",
     };
     return colors[type] || colors.internship;
   };
@@ -90,7 +77,6 @@ function OpportunityDetail({ user }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar user={user} />
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
         </div>
@@ -101,24 +87,29 @@ function OpportunityDetail({ user }) {
   if (!opportunity) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar user={user} />
         <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-          <h2 className="text-2xl font-heading font-bold mb-4">Opportunity not found</h2>
-          <Link to="/opportunities" className="text-accent hover:underline">← Back to Opportunities</Link>
+          <h2 className="text-2xl font-heading font-bold mb-4">
+            Opportunity not found
+          </h2>
+          <Link to="/opportunities" className="text-accent hover:underline">
+            ← Back to Opportunities
+          </Link>
         </div>
       </div>
     );
   }
 
-  const isSaved = opportunity.saved_by && opportunity.saved_by.includes(user.user_id);
+  const isSaved =
+    opportunity.saved_by && opportunity.saved_by.includes(user.user_id);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <Navbar user={user} />
-
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <Link to="/opportunities" className="text-accent hover:underline inline-flex items-center gap-1 mb-4">
+          <Link
+            to="/opportunities"
+            className="text-accent hover:underline inline-flex items-center gap-1 mb-4"
+          >
             ← Back to Opportunities
           </Link>
         </div>
@@ -126,7 +117,11 @@ function OpportunityDetail({ user }) {
         <div className="bg-card rounded-xl border border-border p-8 mb-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <span className={`px-4 py-2 rounded-full text-sm font-medium border ${getTypeColor(opportunity.opp_type)}`}>
+              <span
+                className={`px-4 py-2 rounded-full text-sm font-medium border ${getTypeColor(
+                  opportunity.opp_type
+                )}`}
+              >
                 {opportunity.opp_type.toUpperCase()}
               </span>
               {opportunity.verified && (
@@ -138,7 +133,12 @@ function OpportunityDetail({ user }) {
             </div>
           </div>
 
-          <h1 className="text-3xl font-heading font-bold mb-4" data-testid="opportunity-title">{opportunity.title}</h1>
+          <h1
+            className="text-3xl font-heading font-bold mb-4"
+            data-testid="opportunity-title"
+          >
+            {opportunity.title}
+          </h1>
 
           <div className="flex flex-wrap gap-4 mb-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -148,54 +148,57 @@ function OpportunityDetail({ user }) {
             {opportunity.deadline && (
               <div className="flex items-center gap-2">
                 <Calendar size={16} />
-                <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                <span>
+                  Deadline:{" "}
+                  {new Date(opportunity.deadline).toLocaleDateString()}
+                </span>
               </div>
             )}
             <span>• Posted by {opportunity.user_name}</span>
           </div>
 
-          <p className="text-foreground mb-6 leading-relaxed">{opportunity.description}</p>
+          <p className="text-foreground mb-6 leading-relaxed">
+            {opportunity.description}
+          </p>
 
           <div className="mb-6">
-            <h3 className="font-semibold mb-2">Eligible Departments:</h3>
-            <div className="flex flex-wrap gap-2">
-              {opportunity.department.map((dept, idx) => (
-                <span
-                  key={idx}
-                  className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                >
-                  {dept}
-                </span>
-              ))}
-            </div>
+            <h3 className="font-semibold mb-2">Organization:</h3>
+            <p className="text-muted-foreground">{opportunity.organization}</p>
           </div>
 
           <div className="mb-6">
-            <h3 className="font-semibold mb-2">Eligible Years:</h3>
-            <div className="flex flex-wrap gap-2">
-              {opportunity.year.map((y, idx) => (
-                <span
-                  key={idx}
-                  className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                >
-                  Year {y}
-                </span>
-              ))}
-            </div>
+            <h3 className="font-semibold mb-2">Location:</h3>
+            <p className="text-muted-foreground">{opportunity.location}</p>
           </div>
+
+          <div className="mb-6">
+            <h3 className="font-semibold mb-2">Duration:</h3>
+            <p className="text-muted-foreground">{opportunity.duration}</p>
+          </div>
+
+          {opportunity.requirements && opportunity.requirements.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2">Requirements:</h3>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                {opportunity.requirements.map((req, idx) => (
+                  <li key={idx}>{req}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button
               onClick={handleToggleSave}
               className={`h-10 px-6 rounded-full font-medium transition-all ${
                 isSaved
-                  ? 'bg-accent text-accent-foreground hover:bg-accent/90'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
               }`}
               data-testid="toggle-save-btn"
             >
               <Bookmark size={16} className="inline mr-2" />
-              {isSaved ? 'Saved' : 'Save'}
+              {isSaved ? "Saved" : "Save"}
             </button>
             {opportunity.link && (
               <a
@@ -231,14 +234,18 @@ function OpportunityDetail({ user }) {
               className="h-10 px-6 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="submit-comment-btn"
             >
-              {submittingComment ? 'Posting...' : 'Post Comment'}
+              {submittingComment ? "Posting..." : "Post Comment"}
             </button>
           </form>
 
           <div className="space-y-6" data-testid="comments-list">
             {opportunity.comments && opportunity.comments.length > 0 ? (
               opportunity.comments.map((comment) => (
-                <div key={comment.comment_id} className="flex gap-4" data-testid={`comment-${comment.comment_id}`}>
+                <div
+                  key={comment.comment_id}
+                  className="flex gap-4"
+                  data-testid={`comment-${comment.comment_id}`}
+                >
                   {comment.user_picture ? (
                     <img
                       src={comment.user_picture}
@@ -254,7 +261,9 @@ function OpportunityDetail({ user }) {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold">{comment.user_name}</span>
                       <span className="text-sm text-muted-foreground">
-                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(comment.created_at), {
+                          addSuffix: true,
+                        })}
                       </span>
                     </div>
                     <p className="text-foreground">{comment.text}</p>
@@ -262,7 +271,9 @@ function OpportunityDetail({ user }) {
                 </div>
               ))
             ) : (
-              <p className="text-muted-foreground text-center py-8">No comments yet. Be the first to comment!</p>
+              <p className="text-muted-foreground text-center py-8">
+                No comments yet. Be the first to comment!
+              </p>
             )}
           </div>
         </div>

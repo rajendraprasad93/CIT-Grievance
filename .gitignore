@@ -18,6 +18,34 @@ node_modules/
 
 # Testing
 /coverage
+**/*.test.js
+**/*.test.jsx
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.js
+**/*.spec.jsx
+tests/
+test/
+__tests__/
+
+# Documentation files (ignore all .md except README.md)
+*.md
+!README.md
+
+# Text documentation files
+ALL_DOCUMENTATION.md
+auth_testing.md
+CUSTOMIZE_MOCK_DATA.md
+DEMO_GUIDE.md
+DOCUMENTATION_INDEX.md
+IMPLEMENTATION_COMPLETE.md
+MOCK_DATA_SUMMARY.md
+PLATFORM_MAP.md
+PROJECT_COMPLETION_ROADMAP.md
+QUICKSTART.md
+README_FINAL.md
+START_HERE.md
+test_result.md
 
 # Next.js
 /.next/
@@ -30,8 +58,12 @@ next-env.d.ts
 dist/
 dist
 
-# Environment files (comprehensive coverage)
-
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *token.json*
 *credentials.json*
 
@@ -48,7 +80,7 @@ dump.rdb
 
 # Python
 __pycache__/
-*pyc*
+*.pyc
 venv/
 .venv/
 
@@ -77,4 +109,14 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ 
+android-sdk/
+
+# Emergent files
+.emergent/
+
+# Images (except the ones we need)
+images-removebg-preview.png
+cit-1.jpg
+
+# Design files
+design_guidelines.json

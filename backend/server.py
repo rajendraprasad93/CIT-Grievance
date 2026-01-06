@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from contextlib import asynccontextmanager
 import os
 import logging
 from pathlib import Path
@@ -19,7 +20,14 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    yield
+    # Shutdown
+    client.close()
+
+app = FastAPI(lifespan=lifespan)
 api_router = APIRouter(prefix="/api")
 
 class User(BaseModel):
@@ -105,6 +113,12 @@ async def get_user_from_token(request: Request) -> Optional[dict]:
     if not session_token:
         return None
     
+    # Check if it's a dev session (dev_session_*)
+    if session_token.startswith("dev_session_"):
+        # For dev mode, we accept any dev_session token
+        # In production, you would validate this properly
+        return {"user_id": "dev_user", "name": "Dev User", "role": "student"}
+    
     session_doc = await db.user_sessions.find_one({"session_token": session_token}, {"_id": 0})
     if not session_doc:
         return None
@@ -181,6 +195,81 @@ async def create_session(request: Request, response: Response):
         httponly=True,
         secure=True,
         samesite="none",
+        path="/",
+        max_age=7*24*60*60
+    )
+    
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    return user
+
+@api_router.post("/auth/dev-login")
+async def dev_login(request: Request, response: Response):
+    """Development login - bypasses external auth for testing"""
+    body = await request.json()
+    
+    user_id = body.get("user_id")
+    email = body.get("email")
+    name = body.get("name")
+    
+    if not all([user_id, email, name]):
+        raise HTTPException(status_code=400, detail="user_id, email, and name required")
+    
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": email}, {"_id": 0})
+
+    if existing_user:
+        # Ensure there is a stable user_id; if not, create one and persist it
+        existing_user_id = existing_user.get("user_id")
+        if existing_user_id:
+            user_id = existing_user_id
+        else:
+            user_id = f"user_{uuid.uuid4().hex[:12]}"
+            await db.users.update_one({"email": email}, {"$set": {"user_id": user_id}})
+
+        # Update user info
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "name": name,
+                "picture": body.get("picture"),
+                "department": body.get("department"),
+                "year": body.get("year")
+            }}
+        )
+    else:
+        # Create new user
+        user_doc = {
+            "user_id": user_id,
+            "email": email,
+            "name": name,
+            "picture": body.get("picture"),
+            "role": body.get("role", "student"),
+            "department": body.get("department"),
+            "year": body.get("year"),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(user_doc)
+    
+    # Create session token
+    session_token = f"dev_session_{uuid.uuid4().hex[:24]}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    session_doc = {
+        "user_id": user_id,
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.user_sessions.insert_one(session_doc)
+    
+    # Set session cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=False,  # Allow http for local dev
+        samesite="lax",
         path="/",
         max_age=7*24*60*60
     )
@@ -519,6 +608,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
