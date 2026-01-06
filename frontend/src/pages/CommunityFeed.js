@@ -16,6 +16,11 @@ function CommunityFeed({ user }) {
   const [moments, setMoments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("all");
+  const [filters, setFilters] = useState({
+    hostel: "",
+    department: "",
+    year: "",
+  });
   const [showPostModal, setShowPostModal] = useState(false);
   const [newMoment, setNewMoment] = useState({
     moment_type: "help",
@@ -26,10 +31,19 @@ function CommunityFeed({ user }) {
 
   const fetchMoments = useCallback(async () => {
     try {
-      const endpoint =
-        selectedTab === "all"
-          ? "/api/moments"
-          : `/api/moments?moment_type=${selectedTab}`;
+      let endpoint = "/api/moments";
+      const params = new URLSearchParams();
+      
+      if (selectedTab !== "all") {
+        params.append("moment_type", selectedTab);
+      }
+      if (filters.hostel) params.append("hostel", filters.hostel);
+      if (filters.department) params.append("department", filters.department);
+      if (filters.year) params.append("year", filters.year);
+      
+      if (params.toString()) {
+        endpoint += `?${params.toString()}`;
+      }
 
       const data = await apiGet(endpoint);
       setMoments(data);
@@ -38,7 +52,7 @@ function CommunityFeed({ user }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedTab]);
+  }, [selectedTab, filters]);
 
   useEffect(() => {
     fetchMoments();
@@ -134,22 +148,88 @@ function CommunityFeed({ user }) {
               </button>
             </div>
 
+            {/* Context Filters */}
+            <div className="bg-card rounded-xl border border-border p-4 mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-muted-foreground">Filter by:</span>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={filters.hostel}
+                  onChange={(e) => setFilters({ ...filters, hostel: e.target.value })}
+                  className="h-10 px-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">🏠 All Hostels</option>
+                  <option value="A-Block">A-Block</option>
+                  <option value="B-Block">B-Block</option>
+                  <option value="C-Block">C-Block</option>
+                  <option value="D-Block">D-Block</option>
+                </select>
+
+                <select
+                  value={filters.department}
+                  onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                  className="h-10 px-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">📚 All Departments</option>
+                  <option value="CSE">Computer Science</option>
+                  <option value="ECE">Electronics</option>
+                  <option value="Mechanical">Mechanical</option>
+                  <option value="Civil">Civil</option>
+                  <option value="IT">Information Technology</option>
+                </select>
+
+                <select
+                  value={filters.year}
+                  onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+                  className="h-10 px-4 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">🎓 All Years</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                </select>
+
+                {(filters.hostel || filters.department || filters.year) && (
+                  <button
+                    onClick={() => setFilters({ hostel: "", department: "", year: "" })}
+                    className="h-10 px-4 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 font-medium text-sm transition-colors"
+                  >
+                    ✕ Clear All
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-4" data-testid="moments-list">
               {loading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
                 </div>
               ) : moments.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-xl border border-border">
-                  <p className="text-muted-foreground">
-                    No moments yet. Be the first to post!
+                <div className="text-center py-16 bg-card rounded-xl border-2 border-dashed border-border">
+                  <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle size={32} className="text-accent" />
+                  </div>
+                  <h3 className="text-xl font-heading font-semibold mb-2">No moments yet</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Be the first to share something with your campus community!
                   </p>
+                  <button
+                    onClick={() => setShowPostModal(true)}
+                    className="inline-flex items-center gap-2 h-10 px-6 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 font-medium transition-all"
+                  >
+                    <Plus size={20} />
+                    Post Your First Moment
+                  </button>
                 </div>
               ) : (
                 moments.map((moment) => (
-                  <div
+                  <Link
                     key={moment.moment_id}
-                    className="bg-card rounded-xl border border-border p-6 hover:shadow-md transition-shadow"
+                    to={`/community/${moment.moment_id}`}
+                    className="bg-card rounded-xl border-2 border-border p-6 hover:shadow-lg hover:border-accent transition-all block group cursor-pointer"
                     data-testid={`moment-card-${moment.moment_id}`}
                   >
                     <div className="flex items-start gap-4">
@@ -157,17 +237,17 @@ function CommunityFeed({ user }) {
                         <img
                           src={moment.user_picture}
                           alt={moment.user_name}
-                          className="w-12 h-12 rounded-full"
+                          className="w-12 h-12 rounded-full ring-2 ring-accent/20"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-semibold">
+                        <div className="w-12 h-12 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-semibold ring-2 ring-accent/20">
                           {moment.user_name.charAt(0)}
                         </div>
                       )}
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-semibold group-hover:text-accent transition-colors">
                             {moment.user_name}
                           </span>
                           {moment.user_department && (
@@ -185,10 +265,10 @@ function CommunityFeed({ user }) {
                           {getTypeLabel(moment.moment_type)}
                         </span>
 
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 group-hover:text-accent transition-colors">
                           {moment.title}
                         </h3>
-                        <p className="text-muted-foreground mb-3">
+                        <p className="text-muted-foreground mb-3 line-clamp-2">
                           {moment.content}
                         </p>
 
@@ -199,30 +279,33 @@ function CommunityFeed({ user }) {
                                 key={idx}
                                 className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs"
                               >
-                                {tag}
+                                #{tag}
                               </span>
                             ))}
                           </div>
                         )}
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <button className="flex items-center gap-1 hover:text-accent transition-colors">
+                          <div className="flex items-center gap-1">
                             <Heart size={16} />
-                            <span>{moment.reactions}</span>
-                          </button>
-                          <button className="flex items-center gap-1 hover:text-accent transition-colors">
+                            <span>{moment.reactions || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
                             <MessageCircle size={16} />
-                            <span>{moment.comments_count}</span>
-                          </button>
-                          <span className="ml-auto">
+                            <span>{moment.comments_count || 0} comments</span>
+                          </div>
+                          <span className="ml-auto text-xs">
                             {formatDistanceToNow(new Date(moment.created_at), {
                               addSuffix: true,
                             })}
                           </span>
+                          <span className="text-accent font-medium group-hover:underline">
+                            Read more →
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

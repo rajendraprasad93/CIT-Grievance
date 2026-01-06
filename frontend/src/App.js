@@ -7,6 +7,7 @@ import AuthCallback from "@/components/AuthCallback";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import CommunityFeed from "@/pages/CommunityFeed";
+import MomentDetail from "@/pages/MomentDetail";
 import IssueList from "@/pages/IssueList";
 import IssueDetail from "@/pages/IssueDetail";
 import Opportunities from "@/pages/Opportunities";
@@ -47,6 +48,7 @@ function App() {
             }
           >
             <Route path="/community" element={<CommunityFeed />} />
+            <Route path="/community/:momentId" element={<MomentDetail />} />
             <Route path="/issues" element={<IssueList />} />
             <Route path="/issues/:issueId" element={<IssueDetail />} />
             <Route path="/report-issue" element={<ReportIssue />} />
