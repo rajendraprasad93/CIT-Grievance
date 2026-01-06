@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useOutletContext } from 'react-router-dom';
-import { ArrowLeft, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Calendar, Tag, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiGet, apiPost } from '../lib/api';
 import ReactionButton from '../components/ReactionButton';
@@ -177,6 +177,21 @@ function MomentDetail() {
           <p className="text-lg text-foreground leading-relaxed mb-6 whitespace-pre-wrap">
             {moment.content}
           </p>
+
+          {/* Image Display */}
+          {moment.image_url && (
+            <div className="mb-6 rounded-xl overflow-hidden border border-border">
+              <img
+                src={moment.image_url}
+                alt={moment.title || "Moment image"}
+                className="w-full object-contain bg-secondary/20"
+                style={{ maxHeight: '500px' }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
 
           {/* Tags */}
           {moment.tags && moment.tags.length > 0 && (

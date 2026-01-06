@@ -1,12 +1,18 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# IDE and editors
+# ===================
+# IDE and Editors
+# ===================
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
+# ===================
 # Dependencies
+# ===================
 node_modules/
-/node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -16,107 +22,108 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
+# ===================
+# Documentation (ALL .md files except README.md)
+# ===================
+*.md
+!README.md
+
+# ===================
 # Testing
+# ===================
 /coverage
-**/*.test.js
-**/*.test.jsx
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.js
-**/*.spec.jsx
 tests/
 test/
 __tests__/
 
-# Documentation files (ignore all .md except README.md)
-*.md
-!README.md
-
-# Text documentation files
-ALL_DOCUMENTATION.md
-auth_testing.md
-CUSTOMIZE_MOCK_DATA.md
-DEMO_GUIDE.md
-DOCUMENTATION_INDEX.md
-IMPLEMENTATION_COMPLETE.md
-MOCK_DATA_SUMMARY.md
-PLATFORM_MAP.md
-PROJECT_COMPLETION_ROADMAP.md
-QUICKSTART.md
-README_FINAL.md
-START_HERE.md
-test_result.md
-
-# Next.js
+# ===================
+# Build & Production
+# ===================
 /.next/
 /out/
+/build
+dist/
 next-env.d.ts
 *.tsbuildinfo
 
-# Production builds
-/build
-dist/
-dist
-
-# Environment files
+# ===================
+# Environment & Secrets
+# ===================
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 *token.json*
 *credentials.json*
+*.pem
 
-# Logs and debug files
+# ===================
+# Logs
+# ===================
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dump.rdb
 
-# System files
+# ===================
+# System Files
+# ===================
 .DS_Store
-*.pem
+Thumbs.db
+desktop.ini
 
+# ===================
 # Python
+# ===================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 venv/
 .venv/
+*.egg-info/
 
-# Development tools
-chainlit.md
+# ===================
+# Development Tools
+# ===================
 .chainlit
 .ipynb_checkpoints/
 .ac
+.emergent/
+.cache/
 
+# ===================
 # Deployment
+# ===================
 .vercel
 
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
+# ===================
+# Archives & Large Files
+# ===================
+*.zip
+*.tar.gz
+*.tar
+*.tgz
 *.pack
 *.deb
 *.dylib
+*.rar
+*.7z
 
-# Build caches
-.cache/
-
-# Mobile development
-android-sdk/
-
-# Emergent files
-.emergent/
-
-# Images (except the ones we need)
+# ===================
+# Images (project-specific unwanted)
+# ===================
 images-removebg-preview.png
 cit-1.jpg
 
-# Design files
+# ===================
+# Misc Project Files
+# ===================
 design_guidelines.json
+
+# ===================
+# Uploads (keep folder structure, ignore contents)
+# ===================
+backend/uploads/*
+!backend/uploads/.gitkeep

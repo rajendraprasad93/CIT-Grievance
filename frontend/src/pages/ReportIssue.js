@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { AlertCircle, Upload, Eye } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { AlertCircle, Upload, Eye, ArrowLeft } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-function ReportIssue({ user }) {
+function ReportIssue() {
+  const { user } = useOutletContext();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: "",
@@ -67,27 +68,39 @@ function ReportIssue({ user }) {
 
   const getStatusColor = (status) => {
     const colors = {
-      reported: "bg-slate-100 text-slate-700 border-slate-200",
-      acknowledged: "bg-blue-50 text-blue-700 border-blue-200",
-      in_progress: "bg-amber-50 text-amber-700 border-amber-200",
-      resolved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      reported: "bg-cit-gold/20 text-cit-navy",
+      acknowledged: "bg-cit-navy/10 text-cit-navy",
+      in_progress: "bg-cit-gold/30 text-cit-navy",
+      resolved: "bg-green-100 text-green-700",
     };
     return colors[status] || colors.reported;
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-cit-light pb-20 md:pb-0">
+      {/* Hero Section */}
+      <div className="bg-cit-navy text-white py-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => navigate("/issues")}
+            className="text-white/80 hover:text-white inline-flex items-center gap-1 mb-4 text-sm"
+          >
+            <ArrowLeft size={16} />
+            Back to Issues
+          </button>
+        </div>
+      </div>
+
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1
-            className="text-3xl font-heading font-bold mb-2"
+            className="text-2xl md:text-3xl font-heading font-bold text-cit-navy mb-2"
             data-testid="report-issue-title"
           >
             Report a Campus Issue
           </h1>
-          <p className="text-muted-foreground">
-            Describe what's happening. Others can support, and campus teams can
-            respond.
+          <p className="text-gray-600">
+            Describe what's happening. Others can support, and campus teams can respond.
           </p>
         </div>
 
@@ -95,10 +108,10 @@ function ReportIssue({ user }) {
           <div className="lg:col-span-2">
             <form
               onSubmit={handleSubmit}
-              className="bg-card rounded-xl border border-border p-6 space-y-6"
+              className="bg-white rounded border border-gray-200 p-6 space-y-6 shadow-card"
             >
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-semibold text-cit-navy mb-2">
                   Issue Title *
                 </label>
                 <input
@@ -107,7 +120,7 @@ function ReportIssue({ user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
-                  className="w-full h-10 px-3 rounded-lg border border-input bg-background"
+                  className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
                   placeholder="e.g., No hot water in Hostel A"
                   required
                   data-testid="issue-title-input"
@@ -115,7 +128,7 @@ function ReportIssue({ user }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-semibold text-cit-navy mb-2">
                   Details *
                 </label>
                 <textarea
@@ -123,7 +136,7 @@ function ReportIssue({ user }) {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  className="w-full min-h-[150px] px-3 py-2 rounded-lg border border-input bg-background"
+                  className="w-full min-h-[150px] px-3 py-2 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
                   placeholder="Provide more details about the issue..."
                   required
                   data-testid="issue-description-input"
@@ -132,7 +145,7 @@ function ReportIssue({ user }) {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">
+                  <label className="block text-sm font-semibold text-cit-navy mb-2">
                     Category *
                   </label>
                   <select
@@ -140,7 +153,7 @@ function ReportIssue({ user }) {
                     onChange={(e) =>
                       setFormData({ ...formData, category: e.target.value })
                     }
-                    className="w-full h-10 px-3 rounded-lg border border-input bg-background"
+                    className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
                     data-testid="issue-category-select"
                   >
                     <option value="hostel">Hostel & Mess</option>
@@ -152,7 +165,7 @@ function ReportIssue({ user }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">
+                  <label className="block text-sm font-semibold text-cit-navy mb-2">
                     Location *
                   </label>
                   <input
@@ -161,7 +174,7 @@ function ReportIssue({ user }) {
                     onChange={(e) =>
                       setFormData({ ...formData, location: e.target.value })
                     }
-                    className="w-full h-10 px-3 rounded-lg border border-input bg-background"
+                    className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
                     placeholder="e.g., Hostel A - Block B"
                     required
                     data-testid="issue-location-input"
@@ -178,7 +191,7 @@ function ReportIssue({ user }) {
                     !formData.description ||
                     !formData.location
                   }
-                  className="h-12 px-8 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="h-11 px-8 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-button"
                   data-testid="submit-issue-btn"
                 >
                   {loading ? "Submitting..." : "Submit Issue"}
@@ -186,7 +199,7 @@ function ReportIssue({ user }) {
                 <button
                   type="button"
                   onClick={() => navigate("/issues")}
-                  className="h-12 px-8 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium transition-all"
+                  className="h-11 px-8 rounded bg-cit-light text-cit-navy hover:bg-gray-200 font-semibold transition-all"
                   data-testid="cancel-issue-btn"
                 >
                   Cancel
@@ -198,14 +211,14 @@ function ReportIssue({ user }) {
           <div className="lg:col-span-1">
             {similarIssues.length > 0 && (
               <div
-                className="bg-amber-50 rounded-xl border border-amber-200 p-6"
+                className="bg-cit-gold/10 rounded border border-cit-gold/30 p-6"
                 data-testid="similar-issues"
               >
-                <h3 className="font-heading font-semibold mb-4 flex items-center gap-2">
-                  <AlertCircle size={20} className="text-amber-700" />
+                <h3 className="font-heading font-semibold text-cit-navy mb-4 flex items-center gap-2">
+                  <AlertCircle size={20} className="text-cit-gold" />
                   Similar Issues Found
                 </h3>
-                <p className="text-sm text-amber-800 mb-4">
+                <p className="text-sm text-gray-600 mb-4">
                   These issues might be related. Consider marking "I'm affected"
                   instead of creating a new one.
                 </p>
@@ -213,25 +226,25 @@ function ReportIssue({ user }) {
                   {similarIssues.map((issue) => (
                     <div
                       key={issue.issue_id}
-                      className="bg-white rounded-lg p-4 border border-amber-200"
+                      className="bg-white rounded p-4 border border-gray-200"
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-semibold text-sm">{issue.title}</h4>
+                        <h4 className="font-semibold text-sm text-cit-navy">{issue.title}</h4>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(
+                          className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getStatusColor(
                             issue.status
                           )}`}
                         >
                           {issue.status.replace("_", " ").toUpperCase()}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">
+                      <p className="text-xs text-gray-500 mb-2">
                         {issue.affected_count} affected
                       </p>
                       <button
                         type="button"
                         onClick={() => navigate(`/issues/${issue.issue_id}`)}
-                        className="text-accent hover:underline text-sm flex items-center gap-1"
+                        className="text-cit-gold hover:text-cit-navy text-sm flex items-center gap-1 font-medium"
                       >
                         <Eye size={14} />
                         View Issue

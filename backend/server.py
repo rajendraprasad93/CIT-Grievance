@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -15,6 +15,10 @@ import httpx
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Create uploads directory
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -341,6 +345,7 @@ async def create_moment(request: Request):
         "title": body.get("title"),
         "content": body.get("content"),
         "tags": body.get("tags", []),
+        "image_url": body.get("image_url"),  # Add image URL support
         "reactions": 0,
         "comments_count": 0,
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -348,6 +353,66 @@ async def create_moment(request: Request):
     
     await db.moments.insert_one(moment_doc)
     return await db.moments.find_one({"moment_id": moment_id}, {"_id": 0})
+
+
+@api_router.post("/moments/with-image")
+async def create_moment_with_image(
+    moment_type: str = Form(...),
+    title: str = Form(...),
+    content: str = Form(...),
+    tags: str = Form(""),
+    image: UploadFile = File(None)
+):
+    """Create a moment with optional image upload"""
+    
+    # For now, we'll use a simple approach - save image and return URL
+    image_url = None
+    
+    if image and image.filename:
+        # Save image
+        file_ext = image.filename.split(".")[-1].lower()
+        image_filename = f"moment_{uuid.uuid4().hex[:12]}.{file_ext}"
+        image_path = UPLOAD_DIR / "moments" / image_filename
+        
+        # Create moments directory if it doesn't exist
+        (UPLOAD_DIR / "moments").mkdir(exist_ok=True)
+        
+        with open(image_path, "wb") as buffer:
+            image_bytes = await image.read()
+            buffer.write(image_bytes)
+        
+        # Generate URL for the image (full URL for frontend)
+        image_url = f"http://localhost:5000/api/uploads/moments/{image_filename}"
+        logger.info(f"📸 Image saved: {image_url}")
+    
+    moment_id = f"moment_{uuid.uuid4().hex[:12]}"
+    
+    # Parse tags
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    
+    moment_doc = {
+        "moment_id": moment_id,
+        "user_id": "dev_user",  # TODO: Get from auth
+        "user_name": "Dev User",
+        "user_picture": None,
+        "user_hostel": None,
+        "user_department": None,
+        "moment_type": moment_type,
+        "title": title,
+        "content": content,
+        "tags": tags_list,
+        "image_url": image_url,
+        "reactions": 0,
+        "comments_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    logger.info(f"📝 Creating moment with image_url: {image_url}")
+    
+    await db.moments.insert_one(moment_doc)
+    result = await db.moments.find_one({"moment_id": moment_id}, {"_id": 0})
+    logger.info(f"✅ Moment created: {result}")
+    return result
 
 @api_router.get("/issues")
 async def get_issues(request: Request, category: Optional[str] = None, status: Optional[str] = None):
@@ -607,8 +672,90 @@ async def get_user_profile(user_id: str, request: Request):
         "issues": issues
     }
 
-app.include_router(api_router)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
+# Universal Image Analysis Endpoint
+from services.universal_vision_service import analyze_image_universal
+
+@api_router.post("/analyze-image-universal")
+async def analyze_image_universal_endpoint(
+    image: UploadFile = File(...),
+    context_hint: Optional[str] = Form(None),
+    user_caption: Optional[str] = Form(None)
+):
+    """
+    Universal image analysis endpoint
+    
+    Works for ANY context - automatically detects what the image represents
+    and returns auto-fill data
+    """
+    
+    temp_file_path = None
+    
+    try:
+        # Save temporary file
+        file_ext = image.filename.split(".")[-1].lower()
+        temp_filename = f"temp_{uuid.uuid4().hex}.{file_ext}"
+        temp_file_path = UPLOAD_DIR / temp_filename
+        
+        with open(temp_file_path, "wb") as buffer:
+            content = await image.read()
+            buffer.write(content)
+        
+        logger.info(f"🔍 Universal analysis: {image.filename}")
+        
+        # Universal vision analysis
+        vision_result = await analyze_image_universal(
+            image_path=str(temp_file_path),
+            context_hint=context_hint,
+            user_caption=user_caption
+        )
+        
+        detected_context = vision_result.get("detected_context")
+        confidence = vision_result.get("confidence", 0)
+        
+        logger.info(f"✅ Detected: {detected_context} ({confidence}% confidence)")
+        
+        # Return response
+        return {
+            "success": True,
+            "detected_context": detected_context,
+            "confidence": confidence,
+            "reasoning": vision_result.get("reasoning"),
+            "auto_fill_data": vision_result.get("auto_fill_preview", {}),
+            "extracted_data": vision_result.get("extracted_data", {}),
+            "validation": {
+                "is_authentic": True,
+                "ai_probability": 0
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Universal analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    finally:
+        # FIXED: Clean up temp file with proper error handling
+        if temp_file_path and temp_file_path.exists():
+            try:
+                import time
+                time.sleep(0.1)  # Brief delay to ensure file handles are released
+                temp_file_path.unlink()
+                logger.debug(f"Cleaned up temp file: {temp_file_path}")
+            except PermissionError as e:
+                # File still in use - log and continue
+                logger.warning(f"Could not delete temp file (in use): {temp_file_path}")
+                # Schedule for deletion on exit
+                import atexit
+                atexit.register(lambda: temp_file_path.unlink() if temp_file_path.exists() else None)
+            except Exception as e:
+                logger.warning(f"Could not delete temp file: {e}")
+
+# Add CORS middleware BEFORE including router
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -617,11 +764,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+app.include_router(api_router)
+
+# Serve uploaded images
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Create moments upload directory
+(UPLOAD_DIR / "moments").mkdir(exist_ok=True)
+
+@app.get("/api/uploads/moments/{filename}")
+async def serve_moment_image(filename: str):
+    """Serve uploaded moment images"""
+    file_path = UPLOAD_DIR / "moments" / filename
+    if file_path.exists():
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="Image not found")
 
 if __name__ == "__main__":
     import uvicorn
