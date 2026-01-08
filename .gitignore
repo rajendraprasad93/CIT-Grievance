@@ -47,14 +47,22 @@ next-env.d.ts
 *.tsbuildinfo
 
 # ===================
-# Environment & Secrets
+# Environment & Secrets (CRITICAL - NEVER COMMIT)
 # ===================
 .env
 .env.*
 !.env.example
+*.env
+backend/.env
+frontend/.env
+**/.env
+**/.env.*
 *token.json*
 *credentials.json*
 *.pem
+*.key
+*secret*
+*api_key*
 
 # ===================
 # Logs
