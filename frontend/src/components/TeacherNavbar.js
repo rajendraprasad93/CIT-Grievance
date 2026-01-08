@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, LayoutDashboard, Users, MessageSquare, User, LogOut } from 'lucide-react';
+import { Search, Bell, LayoutDashboard, Users, MessageSquare, User, LogOut, MessageCircle, Briefcase, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -78,6 +78,36 @@ function TeacherNavbar({ user }) {
               >
                 FORUM
               </Link>
+              <Link
+                to="/teacher/moments"
+                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
+                  isActive('/teacher/moments') 
+                    ? 'text-cit-gold border-cit-gold' 
+                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
+                }`}
+              >
+                MOMENTS
+              </Link>
+              <Link
+                to="/teacher/opportunities"
+                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
+                  isActive('/teacher/opportunities') 
+                    ? 'text-cit-gold border-cit-gold' 
+                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
+                }`}
+              >
+                OPPORTUNITIES
+              </Link>
+              <Link
+                to="/teacher/issues"
+                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
+                  isActive('/teacher/issues') 
+                    ? 'text-cit-gold border-cit-gold' 
+                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
+                }`}
+              >
+                ISSUES
+              </Link>
             </div>
           </div>
 
@@ -148,20 +178,28 @@ function TeacherNavbar({ user }) {
       {/* Mobile Bottom Nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-cit-navy border-t border-white/10 flex items-center justify-around py-2 z-50 shadow-nav">
         <Link to="/teacher" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <LayoutDashboard size={22} />
+          <LayoutDashboard size={20} />
           <span className="text-xs font-medium">Dashboard</span>
         </Link>
         <Link to="/teacher/students" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher/students') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <Users size={22} />
+          <Users size={20} />
           <span className="text-xs font-medium">Students</span>
         </Link>
         <Link to="/teacher/forum" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher/forum') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <MessageSquare size={22} />
+          <MessageSquare size={20} />
           <span className="text-xs font-medium">Forum</span>
         </Link>
-        <Link to={`/profile/${user?.user_id}`} className={`flex flex-col items-center gap-1 p-2 transition-all ${location.pathname.includes('/profile') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <User size={22} />
-          <span className="text-xs font-medium">Profile</span>
+        <Link to="/teacher/moments" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher/moments') ? 'text-cit-gold' : 'text-white/70'}`}>
+          <MessageCircle size={20} />
+          <span className="text-xs font-medium">Moments</span>
+        </Link>
+        <Link to="/teacher/opportunities" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher/opportunities') ? 'text-cit-gold' : 'text-white/70'}`}>
+          <Briefcase size={20} />
+          <span className="text-xs font-medium">Opps</span>
+        </Link>
+        <Link to="/teacher/issues" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/teacher/issues') ? 'text-cit-gold' : 'text-white/70'}`}>
+          <AlertTriangle size={20} />
+          <span className="text-xs font-medium">Issues</span>
         </Link>
       </div>
     </nav>

@@ -83,6 +83,9 @@ function App() {
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/students" element={<TeacherStudents />} />
             <Route path="/teacher/forum" element={<TeacherForum />} />
+            <Route path="/teacher/moments" element={<CommunityFeed />} />
+            <Route path="/teacher/opportunities" element={<Opportunities />} />
+            <Route path="/teacher/issues" element={<IssueList />} />
           </Route>
         </Routes>
       </div>
