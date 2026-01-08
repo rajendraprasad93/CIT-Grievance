@@ -6,7 +6,6 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 function Login() {
   const navigate = useNavigate();
-  const [showDevLogin, setShowDevLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     name: "",
@@ -14,13 +13,6 @@ function Login() {
     role: "student",
   });
   const [loading, setLoading] = useState(false);
-
-  const handleGoogleLogin = () => {
-    const redirectUrl = window.location.origin + "/auth-callback";
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(
-      redirectUrl
-    )}`;
-  };
 
   const handleDevLogin = async (e) => {
     e.preventDefault();
@@ -91,112 +83,79 @@ function Login() {
             </p>
           </div>
 
-          {showDevLogin ? (
-            <form onSubmit={handleDevLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-cit-navy mb-2">Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Your name"
-                  className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-cit-navy mb-2">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  placeholder="your@campus.edu"
-                  className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-cit-navy mb-2">
-                  Department
-                </label>
-                <select
-                  value={formData.department}
-                  onChange={(e) =>
-                    setFormData({ ...formData, department: e.target.value })
-                  }
-                  className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-                >
-                  <option>CSE</option>
-                  <option>ECE</option>
-                  <option>Mechanical</option>
-                  <option>Civil</option>
-                  <option>Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-cit-navy mb-2">
-                  Role (Dev Mode)
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
-                  className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-                >
-                  <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all flex items-center justify-center gap-2 shadow-button disabled:opacity-50"
-                data-testid="dev-login-btn"
-              >
-                {loading ? "Signing in..." : "Sign In"}
-                <ArrowRight size={20} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowDevLogin(false)}
-                className="w-full text-sm text-gray-500 hover:text-cit-gold"
-              >
-                Use Google instead
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all flex items-center justify-center gap-2 shadow-button"
-                data-testid="google-login-btn"
-              >
-                Sign in with Google
-                <ArrowRight size={20} />
-              </button>
-
-              <p className="text-sm text-gray-500 text-center">
-                Use your campus email to access the platform
-              </p>
-
-              <button
-                type="button"
-                onClick={() => setShowDevLogin(true)}
-                className="w-full text-sm text-gray-500 hover:text-cit-gold"
-              >
-                Use dev login instead
-              </button>
+          <form onSubmit={handleDevLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-cit-navy mb-2">Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                placeholder="Your name"
+                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+              />
             </div>
-          )}
+
+            <div>
+              <label className="block text-sm font-semibold text-cit-navy mb-2">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="your@campus.edu"
+                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cit-navy mb-2">
+                Department
+              </label>
+              <select
+                value={formData.department}
+                onChange={(e) =>
+                  setFormData({ ...formData, department: e.target.value })
+                }
+                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+              >
+                <option>CSE</option>
+                <option>ECE</option>
+                <option>Mechanical</option>
+                <option>Civil</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cit-navy mb-2">
+                Role
+              </label>
+              <select
+                value={formData.role}
+                onChange={(e) =>
+                  setFormData({ ...formData, role: e.target.value })
+                }
+                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+              >
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all flex items-center justify-center gap-2 shadow-button disabled:opacity-50"
+              data-testid="dev-login-btn"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+              <ArrowRight size={20} />
+            </button>
+          </form>
 
           <div className="mt-8 pt-8 border-t border-gray-200">
             <Link

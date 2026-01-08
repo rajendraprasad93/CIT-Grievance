@@ -5,7 +5,7 @@ function Landing() {
   const navigate = useNavigate();
   
   const handleGetStarted = () => {
-    navigate('/signup');
+    navigate('/login');
   };
 
   return (
@@ -51,7 +51,7 @@ function Landing() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
-                  to="/signup"
+                  to="/login"
                   className="group inline-flex h-12 px-8 rounded bg-cit-gold text-cit-navy hover:bg-[#e5a617] font-semibold text-lg transition-all items-center justify-center gap-2 shadow-button"
                   data-testid="get-started-btn"
                 >
@@ -275,19 +275,19 @@ function Landing() {
           <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
             Start connecting, discovering, and making a difference today. It's free and takes less than a minute.
           </p>
-          <button
-            onClick={handleGetStarted}
+          <Link
+            to="/login"
             className="group inline-flex h-14 px-12 rounded bg-cit-navy text-white hover:bg-[#003875] font-bold text-xl transition-all items-center justify-center gap-3 shadow-button"
             data-testid="cta-get-started"
           >
             Get Started Now
             <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-          </button>
+          </Link>
           <p className="text-sm text-gray-500 mt-6">
             No credit card required • Instant access • Campus ID verified
           </p>
           <div className="flex items-center justify-center gap-4 mt-4">
-            <Link to="/signup" className="text-cit-gold font-semibold hover:text-cit-navy">
+            <Link to="/login" className="text-cit-gold font-semibold hover:text-cit-navy">
               Sign Up
             </Link>
             <span className="text-gray-400">•</span>
