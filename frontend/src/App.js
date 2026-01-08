@@ -3,6 +3,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import TeacherRoute from "@/components/TeacherRoute";
 import AuthCallback from "@/components/AuthCallback";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
@@ -18,6 +19,10 @@ import Profile from "@/pages/Profile";
 import FindPartners from "@/pages/FindPartners";
 import DebugAuth from "@/pages/DebugAuth";
 import AdminDashboard from "@/pages/AdminDashboard";
+// Teacher Pages
+import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
+import TeacherStudents from "@/pages/teacher/TeacherStudents";
+import TeacherForum from "@/pages/teacher/TeacherForum";
 
 // Create a context to pass user to all pages
 const UserContext = createContext(null);
@@ -69,6 +74,15 @@ function App() {
             />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
+
+          {/* Teacher Routes - Role Protected */}
+          <Route
+            element={<TeacherRoute />}
+          >
+            <Route path="/teacher" element={<TeacherDashboard />} />
+            <Route path="/teacher/students" element={<TeacherStudents />} />
+            <Route path="/teacher/forum" element={<TeacherForum />} />
           </Route>
         </Routes>
       </div>

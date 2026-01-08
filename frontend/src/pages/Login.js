@@ -33,12 +33,20 @@ function Login() {
                     formData.email.toLowerCase().includes('admin') || 
                     formData.email.toLowerCase().endsWith('@admin.edu');
     
+    const isTeacher = formData.role === "teacher" || 
+                      formData.email.toLowerCase().includes('teacher') || 
+                      formData.email.toLowerCase().endsWith('@faculty.edu');
+    
+    let userRole = "student";
+    if (isAdmin) userRole = "admin";
+    else if (isTeacher) userRole = "teacher";
+    
     const devUser = {
       user_id: `dev_${Date.now()}`,
       email: formData.email,
       name: formData.name,
       picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}`,
-      role: isAdmin ? "admin" : "student",
+      role: userRole,
       department: formData.department,
       year: 2,
       created_at: new Date().toISOString(),
@@ -51,6 +59,8 @@ function Login() {
       
       if (isAdmin) {
         navigate("/admin");
+      } else if (isTeacher) {
+        navigate("/teacher");
       } else {
         navigate("/community");
       }
@@ -140,6 +150,7 @@ function Login() {
                   className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
                 >
                   <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

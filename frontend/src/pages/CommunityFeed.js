@@ -95,6 +95,15 @@ function CommunityFeed() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Feed */}
           <div className="lg:col-span-2">
+            {/* Campus Banner Image */}
+            <div className="mb-6 h-48 md:h-56 overflow-hidden rounded-lg shadow-md">
+              <img 
+                src="/campus-banner.jpg" 
+                alt="CIT Tug of War 2026" 
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
+
             {/* Section Title */}
             <div className="mb-6">
               <h2 className="section-title">Campus Moments</h2>
