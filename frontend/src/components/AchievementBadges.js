@@ -1,11 +1,66 @@
-import { Award, Flame, Target, Zap, Heart, MessageCircle, TrendingUp } from 'lucide-react';
+import { Award, Flame, Target, Zap, Heart, MessageCircle, TrendingUp, Users, FileText } from 'lucide-react';
 
 /**
- * AchievementBadges - Tier 7: Engagement Hooks
+ * AchievementBadges - Connected to backend
  * Gamification badges for user achievements
  */
-function AchievementBadges({ badges, compact = false }) {
+function AchievementBadges({ badges = [], compact = false }) {
   const allBadges = {
+    first_moment: {
+      icon: MessageCircle,
+      color: 'text-help',
+      bg: 'bg-help/10',
+      border: 'border-help/20',
+      title: 'First Post',
+      description: 'Posted your first moment',
+      emoji: '🎉',
+    },
+    active_contributor: {
+      icon: TrendingUp,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+      border: 'border-primary/20',
+      title: 'Active Contributor',
+      description: 'Posted 10 or more moments',
+      emoji: '⭐',
+    },
+    issue_reporter: {
+      icon: FileText,
+      color: 'text-issue',
+      bg: 'bg-issue/10',
+      border: 'border-issue/20',
+      title: 'Issue Reporter',
+      description: 'Reported your first campus issue',
+      emoji: '📝',
+    },
+    helpful: {
+      icon: Heart,
+      color: 'text-opportunity',
+      bg: 'bg-opportunity/10',
+      border: 'border-opportunity/20',
+      title: 'Helpful',
+      description: 'Received 10 or more reactions',
+      emoji: '💝',
+    },
+    popular: {
+      icon: Users,
+      color: 'text-life',
+      bg: 'bg-life/10',
+      border: 'border-life/20',
+      title: 'Popular',
+      description: 'Gained 50 or more followers',
+      emoji: '🌟',
+    },
+    engaged: {
+      icon: MessageCircle,
+      color: 'text-help',
+      bg: 'bg-help/10',
+      border: 'border-help/20',
+      title: 'Engaged',
+      description: 'Made 20 or more comments',
+      emoji: '💬',
+    },
+    // Legacy badges for backward compatibility
     first_post: {
       icon: MessageCircle,
       color: 'text-help',
@@ -62,7 +117,13 @@ function AchievementBadges({ badges, compact = false }) {
     },
   };
 
-  const userBadges = badges?.map(b => allBadges[b]).filter(Boolean) || [];
+  // Handle both array of strings and array of badge objects from backend
+  const userBadgeKeys = badges?.map(b => {
+    if (typeof b === 'string') return b;
+    return b.badge_type || b;
+  }).filter(Boolean) || [];
+
+  const userBadges = userBadgeKeys.map(key => allBadges[key]).filter(Boolean);
 
   if (compact) {
     return (
@@ -94,68 +155,47 @@ function AchievementBadges({ badges, compact = false }) {
         <div>
           <h3 className="font-heading font-bold text-lg">Achievements</h3>
           <p className="text-xs text-muted-foreground">
-            {userBadges.length} of {Object.keys(allBadges).length} unlocked
+            {userBadges.length} unlocked
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {Object.entries(allBadges).map(([key, badge]) => {
-          const Icon = badge.icon;
-          const isUnlocked = badges?.includes(key);
-
-          return (
-            <div
-              key={key}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                isUnlocked
-                  ? `${badge.bg} ${badge.border}`
-                  : 'bg-secondary/50 border-border opacity-50'
-              }`}
-            >
-              <div className="flex items-start gap-3 mb-2">
-                <div className={`w-10 h-10 rounded-full ${isUnlocked ? badge.bg : 'bg-secondary'} flex items-center justify-center flex-shrink-0`}>
-                  {isUnlocked ? (
+      {userBadges.length === 0 ? (
+        <div className="text-center py-6">
+          <p className="text-sm text-muted-foreground">No badges earned yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Keep contributing to earn badges!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {userBadges.map((badge, idx) => {
+            const Icon = badge.icon;
+            return (
+              <div
+                key={idx}
+                className={`p-4 rounded-xl border-2 transition-all ${badge.bg} ${badge.border}`}
+              >
+                <div className="flex items-start gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-full ${badge.bg} flex items-center justify-center flex-shrink-0`}>
                     <span className="text-xl">{badge.emoji}</span>
-                  ) : (
-                    <Icon size={18} className="text-muted-foreground" />
-                  )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm mb-1 ${badge.color}`}>
+                      {badge.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {badge.description}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-sm mb-1 ${isUnlocked ? badge.color : 'text-muted-foreground'}`}>
-                    {badge.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {badge.description}
-                  </p>
-                </div>
-              </div>
-              {isUnlocked && (
                 <div className="flex items-center gap-1 text-xs font-semibold text-life">
                   <Award size={12} />
                   Unlocked
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Progress */}
-      <div className="mt-6 pt-6 border-t border-border">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-muted-foreground">PROGRESS</span>
-          <span className="text-xs font-semibold text-primary">
-            {Math.round((userBadges.length / Object.keys(allBadges).length) * 100)}%
-          </span>
+              </div>
+            );
+          })}
         </div>
-        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-opportunity transition-all duration-500"
-            style={{ width: `${(userBadges.length / Object.keys(allBadges).length) * 100}%` }}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

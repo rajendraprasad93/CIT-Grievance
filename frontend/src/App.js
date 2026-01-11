@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -19,6 +19,7 @@ import Profile from "@/pages/Profile";
 import FindPartners from "@/pages/FindPartners";
 import DebugAuth from "@/pages/DebugAuth";
 import AdminDashboard from "@/pages/AdminDashboard";
+import StudentClassDashboard from "@/pages/StudentClassDashboard";
 // Teacher Pages
 import TeacherDashboard from "@/pages/teacher/TeacherDashboard";
 import TeacherStudents from "@/pages/teacher/TeacherStudents";
@@ -27,19 +28,6 @@ import TeacherForum from "@/pages/teacher/TeacherForum";
 // Create a context to pass user to all pages
 const UserContext = createContext(null);
 export const useUser = () => useContext(UserContext);
-
-// Layout component that renders Navbar + page content
-const ProtectedLayout = ({ user }) => {
-  console.log("ProtectedLayout user:", user); // Debug log
-  return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar user={user} />
-      <main className="flex-1">
-        <Outlet context={{ user }} />
-      </main>
-    </div>
-  );
-};
 
 function App() {
   return (
@@ -54,13 +42,7 @@ function App() {
           <Route path="/debug-auth" element={<DebugAuth />} />
 
           {/* Protected Routes with Navbar */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <ProtectedLayout />
-              </ProtectedRoute>
-            }
-          >
+          <Route element={<ProtectedRoute />}>
             <Route path="/community" element={<CommunityFeed />} />
             <Route path="/community/:momentId" element={<MomentDetail />} />
             <Route path="/find-partners" element={<FindPartners />} />
@@ -68,18 +50,14 @@ function App() {
             <Route path="/issues/:issueId" element={<IssueDetail />} />
             <Route path="/report-issue" element={<ReportIssue />} />
             <Route path="/opportunities" element={<Opportunities />} />
-            <Route
-              path="/opportunities/:oppId"
-              element={<OpportunityDetail />}
-            />
+            <Route path="/opportunities/:oppId" element={<OpportunityDetail />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/my-class" element={<StudentClassDashboard />} />
           </Route>
 
           {/* Teacher Routes - Role Protected */}
-          <Route
-            element={<TeacherRoute />}
-          >
+          <Route element={<TeacherRoute />}>
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/teacher/students" element={<TeacherStudents />} />
             <Route path="/teacher/forum" element={<TeacherForum />} />

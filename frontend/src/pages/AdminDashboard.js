@@ -4,10 +4,24 @@ import {
   Users, AlertTriangle, Briefcase, MessageCircle, TrendingUp, CheckCircle, 
   Clock, XCircle, Brain, Filter, ChevronDown, ChevronUp, Layers, 
   BarChart3, Zap, AlertCircle, Info, Search, RefreshCw, Eye, Shield,
-  Trash2, CheckCircle2, Flag, User, FileText, ThumbsUp, ThumbsDown
+  Trash2, CheckCircle2, Flag, User, FileText, ThumbsUp, ThumbsDown, Plus,
+  Building, MapPin, Calendar, Link as LinkIcon, DollarSign, GraduationCap
 } from 'lucide-react';
-import { apiGet, apiPut } from '../lib/api';
+import { apiGet, apiPut, apiPost, apiDelete } from '../lib/api';
 import { formatDistanceToNow } from 'date-fns';
+
+// Safe date formatting function
+const safeFormatDistanceToNow = (dateString) => {
+  try {
+    if (!dateString) return 'Recently';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Recently';
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    console.warn('Invalid date format:', dateString);
+    return 'Recently';
+  }
+};
 
 // Mock AI-Flagged Posts for Moderation
 const mockFlaggedPosts = [
@@ -277,13 +291,20 @@ function AdminDashboard() {
   const [aiProcessing, setAiProcessing] = useState(false);
   
   // Moderation state
-  const [flaggedPosts, setFlaggedPosts] = useState(mockFlaggedPosts);
-  const [moderationLog, setModerationLog] = useState(mockModerationLog);
+  const [flaggedPosts, setFlaggedPosts] = useState([]);
+  const [moderationLog, setModerationLog] = useState([]);
   const [modRiskFilter, setModRiskFilter] = useState('all');
   const [modSeverityFilter, setModSeverityFilter] = useState('all');
   const [modStatusFilter, setModStatusFilter] = useState('pending');
   const [modSortBy, setModSortBy] = useState('severity');
   const [selectedPost, setSelectedPost] = useState(null);
+  const [moderationStats, setModerationStats] = useState({
+    total_flagged: 0,
+    pending: 0,
+    approved: 0,
+    removed: 0,
+    reviewed: 0
+  });
   
   // Filters for aggregated issues
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -291,31 +312,108 @@ function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('severity');
   const [expandedIssue, setExpandedIssue] = useState(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
+
+  // Opportunity management state
+  const [showOpportunityModal, setShowOpportunityModal] = useState(false);
+  const [opportunityForm, setOpportunityForm] = useState({
+    title: '',
+    description: '',
+    opp_type: 'internship',
+    organization: '',
+    location: '',
+    duration: '',
+    stipend: '',
+    eligibility: '',
+    department: [],
+    year: [],
+    deadline: '',
+    link: ''
+  });
+  const [opportunitySubmitting, setOpportunitySubmitting] = useState(false);
 
   useEffect(() => {
+    console.log('AdminDashboard mounted or tab changed to:', activeTab);
+    // Always fetch dashboard data when component mounts or tab changes
     fetchDashboardData();
-  }, []);
+    
+    // Additionally fetch moderation data if on moderation tab
+    if (activeTab === 'moderation') {
+      fetchModerationData();
+    }
+    
+    // Fetch aggregated issues if on AI insights tab
+    if (activeTab === 'ai-insights') {
+      fetchAggregatedIssues();
+    }
+  }, [activeTab]);
 
   const fetchDashboardData = async () => {
     try {
-      const [issues, moments, opportunities] = await Promise.all([
-        apiGet('/api/issues'),
+      const [issuesData, moments, opportunities, adminStats] = await Promise.all([
+        apiGet('/api/admin/issues'),
         apiGet('/api/moments'),
         apiGet('/api/opportunities'),
+        apiGet('/api/admin/stats').catch(() => null), // Fallback if admin stats fail
       ]);
+      
+      // Extract issues from the admin response
+      const issues = issuesData.issues || issuesData;
+      
+      console.log('Admin Dashboard - Fetched issues:', issues.length, issues);
+      console.log('Admin Dashboard - Admin stats:', adminStats);
+      
+      // Use real data from admin stats API, with fallbacks
+      const totalUsers = adminStats?.platform?.total_users || adminStats?.users?.total_users || 0;
+      
       setStats({
-        totalUsers: 150,
+        totalUsers: totalUsers,
         totalIssues: issues.length,
-        pendingIssues: issues.filter(i => i.status === 'reported' || i.status === 'acknowledged').length,
+        pendingIssues: issues.filter(i => i.status === 'reported' || i.status === 'acknowledged' || i.status === 'in_progress').length,
         resolvedIssues: issues.filter(i => i.status === 'resolved').length,
         totalMoments: moments.length,
         totalOpportunities: opportunities.length,
       });
       setRecentIssues(issues.slice(0, 10));
+      console.log('Admin Dashboard - Set recentIssues:', issues.slice(0, 10));
+      console.log('Admin Dashboard - Stats set:', {
+        totalUsers,
+        totalIssues: issues.length,
+        pendingIssues: issues.filter(i => i.status === 'reported' || i.status === 'acknowledged' || i.status === 'in_progress').length,
+        resolvedIssues: issues.filter(i => i.status === 'resolved').length,
+        totalMoments: moments.length,
+        totalOpportunities: opportunities.length,
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchModerationData = async () => {
+    try {
+      const [flaggedData, logData, statsData] = await Promise.all([
+        apiGet('/api/admin/moderation/flagged?limit=100'),
+        apiGet('/api/admin/moderation/log?limit=50'),
+        apiGet('/api/admin/moderation/stats'),
+      ]);
+      
+      setFlaggedPosts(flaggedData.flagged_content || []);
+      setModerationLog(logData.logs || []);
+      setModerationStats(statsData || {
+        total_flagged: 0,
+        pending: 0,
+        approved: 0,
+        removed: 0,
+        reviewed: 0
+      });
+    } catch (error) {
+      console.error('Error fetching moderation data:', error);
+      // Keep using mock data if API fails
+      setFlaggedPosts(mockFlaggedPosts);
+      setModerationLog(mockModerationLog);
     }
   };
 
@@ -332,48 +430,147 @@ function AdminDashboard() {
     }
   };
 
-  const simulateAiProcessing = () => {
+  const runAiAnalysis = async () => {
     setAiProcessing(true);
-    setTimeout(() => {
+    try {
+      console.log('Starting AI analysis...');
+      
+      // Run the AI analysis using the API utility
+      const analysisResult = await apiPost('/api/admin/issues/run-analysis', {});
+      console.log('AI Analysis Result:', analysisResult);
+      
+      // Fetch the updated aggregated issues
+      await fetchAggregatedIssues();
+      
+      // Show detailed analysis results
+      if (analysisResult.success && analysisResult.aggregated_issues && analysisResult.aggregated_issues.length > 0) {
+        console.log('Analysis successful, showing modal with', analysisResult.aggregated_issues.length, 'clusters');
+        setAnalysisResults(analysisResult);
+        setShowAnalysisModal(true);
+        
+        // Also show a brief notification
+        alert(`✅ AI Analysis Complete!\n\nFound ${analysisResult.clusters_found} issue clusters from ${analysisResult.total_issues_processed} issues.\n\nClick OK to view detailed results.`);
+      } else {
+        alert(`AI analysis completed! Found ${analysisResult.clusters_found || 0} issue clusters.`);
+      }
+    } catch (error) {
+      console.error('Error running AI analysis:', error);
+      alert(`Failed to run AI analysis: ${error.message}`);
+    } finally {
       setAiProcessing(false);
-      alert('AI analysis complete! Issue clusters updated.');
-    }, 2000);
-  };
-
-  // Moderation handlers
-  const handleApprovePost = (postId) => {
-    setFlaggedPosts(flaggedPosts.map(p => 
-      p.id === postId ? { ...p, status: 'approved', reviewedBy: user?.name, reviewedAt: new Date().toISOString() } : p
-    ));
-    setModerationLog([
-      { id: Date.now(), action: 'approved', postId, adminName: user?.name, timestamp: new Date().toISOString(), reason: 'Approved by admin' },
-      ...moderationLog
-    ]);
-    setSelectedPost(null);
-  };
-
-  const handleRemovePost = (postId) => {
-    if (window.confirm('Are you sure you want to remove this post? This action will be logged.')) {
-      setFlaggedPosts(flaggedPosts.map(p => 
-        p.id === postId ? { ...p, status: 'removed', reviewedBy: user?.name, reviewedAt: new Date().toISOString() } : p
-      ));
-      setModerationLog([
-        { id: Date.now(), action: 'removed', postId, adminName: user?.name, timestamp: new Date().toISOString(), reason: 'Removed by admin' },
-        ...moderationLog
-      ]);
-      setSelectedPost(null);
     }
   };
 
-  const handleMarkReviewed = (postId) => {
-    setFlaggedPosts(flaggedPosts.map(p => 
-      p.id === postId ? { ...p, status: 'reviewed', reviewedBy: user?.name, reviewedAt: new Date().toISOString() } : p
-    ));
-    setModerationLog([
-      { id: Date.now(), action: 'reviewed', postId, adminName: user?.name, timestamp: new Date().toISOString(), reason: 'Marked as reviewed' },
-      ...moderationLog
-    ]);
-    setSelectedPost(null);
+  const showAnalysisResults = (result) => {
+    if (!result.success || !result.aggregated_issues || result.aggregated_issues.length === 0) {
+      alert(`AI analysis completed! Found ${result.clusters_found || 0} clusters.`);
+      return;
+    }
+
+    setAnalysisResults(result);
+    setShowAnalysisModal(true);
+  };
+
+  const fetchAggregatedIssues = async () => {
+    try {
+      const data = await apiGet('/api/admin/issues/aggregated');
+      console.log('Fetched aggregated issues:', data);
+      setAggregatedIssues(data.aggregated_issues || []);
+    } catch (error) {
+      console.error('Error fetching aggregated issues:', error);
+      // Keep using mock data as fallback
+    }
+  };
+
+  // Opportunity handlers
+  const handleOpportunitySubmit = async (e) => {
+    e.preventDefault();
+    setOpportunitySubmitting(true);
+    
+    try {
+      // Validate required fields
+      if (!opportunityForm.title || !opportunityForm.description || !opportunityForm.opp_type) {
+        alert('Please fill in all required fields (Title, Description, Type)');
+        setOpportunitySubmitting(false);
+        return;
+      }
+      
+      const response = await apiPost('/api/admin/opportunities', opportunityForm);
+      console.log('Opportunity created:', response);
+      
+      // Reset form and close modal
+      setOpportunityForm({
+        title: '',
+        description: '',
+        opp_type: 'internship',
+        organization: '',
+        location: '',
+        duration: '',
+        stipend: '',
+        eligibility: '',
+        department: [],
+        year: [],
+        deadline: '',
+        link: ''
+      });
+      setShowOpportunityModal(false);
+      
+      // Refresh dashboard data
+      fetchDashboardData();
+      
+      alert('✅ Opportunity created successfully!');
+    } catch (error) {
+      console.error('Error creating opportunity:', error);
+      alert(`Failed to create opportunity: ${error.message}`);
+    } finally {
+      setOpportunitySubmitting(false);
+    }
+  };
+
+  const handleOpportunityFormChange = (field, value) => {
+    setOpportunityForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Moderation handlers
+  const handleApprovePost = async (flagId) => {
+    try {
+      await apiPost(`/api/admin/moderation/${flagId}/approve`, { reason: 'Approved by admin' });
+      // Refresh moderation data
+      await fetchModerationData();
+      setSelectedPost(null);
+    } catch (error) {
+      console.error('Error approving post:', error);
+      alert('Failed to approve post');
+    }
+  };
+
+  const handleRemovePost = async (flagId) => {
+    if (window.confirm('Are you sure you want to remove this post? This action will be logged.')) {
+      try {
+        await apiPost(`/api/admin/moderation/${flagId}/remove`, { reason: 'Removed by admin' });
+        // Refresh moderation data
+        await fetchModerationData();
+        setSelectedPost(null);
+      } catch (error) {
+        console.error('Error removing post:', error);
+        alert('Failed to remove post');
+      }
+    }
+  };
+
+  const handleMarkReviewed = async (flagId) => {
+    try {
+      await apiPost(`/api/admin/moderation/${flagId}/review`, { reason: 'Marked as reviewed' });
+      // Refresh moderation data
+      await fetchModerationData();
+      setSelectedPost(null);
+    } catch (error) {
+      console.error('Error marking as reviewed:', error);
+      alert('Failed to mark as reviewed');
+    }
   };
 
   const getRiskCategoryConfig = (category) => {
@@ -400,20 +597,20 @@ function AdminDashboard() {
 
   // Filter flagged posts
   const filteredFlaggedPosts = flaggedPosts
-    .filter(p => modRiskFilter === 'all' || p.riskCategory === modRiskFilter)
-    .filter(p => modSeverityFilter === 'all' || p.riskSeverity === modSeverityFilter)
+    .filter(p => modRiskFilter === 'all' || p.risk_category === modRiskFilter)
+    .filter(p => modSeverityFilter === 'all' || p.risk_severity === modSeverityFilter)
     .filter(p => modStatusFilter === 'all' || p.status === modStatusFilter)
     .sort((a, b) => {
       if (modSortBy === 'severity') {
         const order = { critical: 0, high: 1, medium: 2, low: 3 };
-        return order[a.riskSeverity] - order[b.riskSeverity];
+        return order[a.risk_severity] - order[b.risk_severity];
       }
-      if (modSortBy === 'confidence') return b.confidenceScore - a.confidenceScore;
-      if (modSortBy === 'recent') return new Date(b.flaggedAt) - new Date(a.flaggedAt);
+      if (modSortBy === 'confidence') return b.confidence_score - a.confidence_score;
+      if (modSortBy === 'recent') return new Date(b.flagged_at) - new Date(a.flagged_at);
       return 0;
     });
 
-  const riskCategories = [...new Set(flaggedPosts.map(p => p.riskCategory))];
+  const riskCategories = [...new Set(flaggedPosts.map(p => p.risk_category))];
 
   const getSeverityConfig = (severity) => {
     const configs = {
@@ -461,12 +658,12 @@ function AdminDashboard() {
 
   if (user?.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
         <div className="text-center">
           <XCircle size={64} className="text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
           <p className="text-gray-500 mb-6">You need admin privileges to access this page.</p>
-          <Link to="/community" className="text-cit-gold hover:underline">Go to Community</Link>
+          <Link to="/community" className="text-amber-600 hover:underline">Go to Community</Link>
         </div>
       </div>
     );
@@ -474,61 +671,61 @@ function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cit-navy"></div>
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-[#FAFAFA] pb-20 md:pb-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold text-cit-navy mb-2">Admin Dashboard</h1>
+          <h1 className="text-3xl font-heading font-bold text-gray-900 mb-2">Admin Dashboard</h1>
           <p className="text-gray-500">Manage campus issues and monitor platform activity</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
+        <div className="flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all ${
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'overview' 
-                ? 'border-cit-navy text-cit-navy' 
-                : 'border-transparent text-gray-500 hover:text-cit-navy'
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab('ai-insights')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 ${
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'ai-insights' 
-                ? 'border-cit-navy text-cit-navy' 
-                : 'border-transparent text-gray-500 hover:text-cit-navy'
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             <Brain size={16} />
             AI Issue Insights
-            <span className="px-2 py-0.5 bg-cit-gold text-cit-navy text-xs font-bold rounded">NEW</span>
+            <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded">NEW</span>
           </button>
           <button
             onClick={() => setActiveTab('all-issues')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all ${
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all whitespace-nowrap ${
               activeTab === 'all-issues' 
-                ? 'border-cit-navy text-cit-navy' 
-                : 'border-transparent text-gray-500 hover:text-cit-navy'
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             All Issues
           </button>
           <button
             onClick={() => setActiveTab('moderation')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 ${
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'moderation' 
-                ? 'border-cit-navy text-cit-navy' 
-                : 'border-transparent text-gray-500 hover:text-cit-navy'
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
             }`}
           >
             <Shield size={16} />
@@ -546,103 +743,112 @@ function AdminDashboard() {
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Users className="text-blue-600" size={24} />
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Users className="text-amber-600" size={24} />
                   </div>
-                  <TrendingUp className="text-green-600" size={20} />
+                  <TrendingUp className="text-emerald-600" size={20} />
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{stats.totalUsers}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalUsers}</h3>
                 <p className="text-sm text-gray-500">Active Users</p>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
                     <AlertTriangle className="text-orange-600" size={24} />
                   </div>
                   <span className="text-sm font-medium text-orange-600">{stats.pendingIssues} pending</span>
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{stats.totalIssues}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalIssues}</h3>
                 <p className="text-sm text-gray-500">Total Issues</p>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="text-green-600" size={24} />
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle className="text-emerald-600" size={24} />
                   </div>
-                  <span className="text-sm font-medium text-green-600">
+                  <span className="text-sm font-medium text-emerald-600">
                     {stats.totalIssues > 0 ? Math.round((stats.resolvedIssues / stats.totalIssues) * 100) : 0}%
                   </span>
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{stats.resolvedIssues}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.resolvedIssues}</h3>
                 <p className="text-sm text-gray-500">Resolved Issues</p>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                    <MessageCircle className="text-purple-600" size={24} />
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <MessageCircle className="text-blue-600" size={24} />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{stats.totalMoments}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalMoments}</h3>
                 <p className="text-sm text-gray-500">Community Moments</p>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Briefcase className="text-indigo-600" size={24} />
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Briefcase className="text-amber-600" size={24} />
                   </div>
+                  <button
+                    onClick={() => setShowOpportunityModal(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition-colors"
+                    title="Add new opportunity"
+                  >
+                    <Plus size={14} />
+                    Add
+                  </button>
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{stats.totalOpportunities}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{stats.totalOpportunities}</h3>
                 <p className="text-sm text-gray-500">Opportunities Posted</p>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-amber-300 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-full bg-cit-gold/20 flex items-center justify-center">
-                    <Brain className="text-cit-navy" size={24} />
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Brain className="text-amber-600" size={24} />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{aggregatedIssues.length}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{aggregatedIssues.length}</h3>
                 <p className="text-sm text-gray-500">AI Issue Clusters</p>
               </div>
             </div>
 
             {/* AI Insights Summary */}
-            <div className="bg-gradient-to-r from-cit-navy to-blue-800 rounded-lg p-6 mb-8 text-white">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-8 text-white">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <Brain size={24} />
+                  <Brain size={24} className="text-amber-400" />
                   <h2 className="text-xl font-semibold">AI Issue Analysis Summary</h2>
                 </div>
                 <button
-                  onClick={simulateAiProcessing}
+                  onClick={runAiAnalysis}
                   disabled={aiProcessing}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 text-gray-900"
+                  title="Analyze all issues and group similar ones together using AI"
                 >
                   <RefreshCw size={16} className={aiProcessing ? 'animate-spin' : ''} />
-                  {aiProcessing ? 'Processing...' : 'Run Analysis'}
+                  {aiProcessing ? 'Analyzing Issues...' : 'Run AI Analysis'}
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white/10 rounded-lg p-4">
-                  <p className="text-3xl font-bold text-red-300">{aggregatedIssues.filter(i => i.severity === 'critical').length}</p>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-3xl font-bold text-red-400">{aggregatedIssues.filter(i => i.severity === 'critical').length}</p>
                   <p className="text-sm text-white/70">Critical Issues</p>
                 </div>
-                <div className="bg-white/10 rounded-lg p-4">
-                  <p className="text-3xl font-bold text-orange-300">{aggregatedIssues.filter(i => i.severity === 'high').length}</p>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-3xl font-bold text-orange-400">{aggregatedIssues.filter(i => i.severity === 'high').length}</p>
                   <p className="text-sm text-white/70">High Priority</p>
                 </div>
-                <div className="bg-white/10 rounded-lg p-4">
-                  <p className="text-3xl font-bold text-cit-gold">{aggregatedIssues.reduce((sum, i) => sum + i.relatedCount, 0)}</p>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-3xl font-bold text-amber-400">{aggregatedIssues.reduce((sum, i) => sum + i.relatedCount, 0)}</p>
                   <p className="text-sm text-white/70">Total Complaints</p>
                 </div>
-                <div className="bg-white/10 rounded-lg p-4">
-                  <p className="text-3xl font-bold text-green-300">{aggregatedIssues.reduce((sum, i) => sum + i.totalAffected, 0)}</p>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-3xl font-bold text-emerald-400">{aggregatedIssues.reduce((sum, i) => sum + i.totalAffected, 0)}</p>
                   <p className="text-sm text-white/70">Students Affected</p>
                 </div>
               </div>
@@ -653,8 +859,29 @@ function AdminDashboard() {
         {/* AI Insights Tab */}
         {activeTab === 'ai-insights' && (
           <div>
+            {/* AI Analysis Description */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Brain className="text-amber-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">AI Issue Clustering</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Our AI analyzes all reported issues and automatically groups similar problems together. 
+                    This helps identify patterns, prioritize responses, and allocate resources more effectively.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Keyword Analysis</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Location Grouping</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Category Matching</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Impact Assessment</span>
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Filters */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Filter size={16} className="text-gray-400" />
@@ -664,21 +891,21 @@ function AdminDashboard() {
                 <select
                   value={severityFilter}
                   onChange={(e) => setSeverityFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Severity</option>
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option key="all-severity-1" value="all">All Severity</option>
+                  <option key="critical-1" value="critical">Critical</option>
+                  <option key="high-1" value="high">High</option>
+                  <option key="medium-1" value="medium">Medium</option>
+                  <option key="low-1" value="low">Low</option>
                 </select>
 
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Categories</option>
+                  <option key="all-categories" value="all">All Categories</option>
                   {categories.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -687,13 +914,13 @@ function AdminDashboard() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Status</option>
-                  <option value="reported">Reported</option>
-                  <option value="acknowledged">Acknowledged</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
+                  <option key="all-status-1" value="all">All Status</option>
+                  <option key="reported-1" value="reported">Reported</option>
+                  <option key="acknowledged-1" value="acknowledged">Acknowledged</option>
+                  <option key="in_progress-1" value="in_progress">In Progress</option>
+                  <option key="resolved-1" value="resolved">Resolved</option>
                 </select>
 
                 <div className="ml-auto flex items-center gap-2">
@@ -701,12 +928,12 @@ function AdminDashboard() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                    className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   >
-                    <option value="severity">Severity</option>
-                    <option value="affected">Most Affected</option>
-                    <option value="complaints">Most Complaints</option>
-                    <option value="recent">Recent Activity</option>
+                    <option key="severity-sort" value="severity">Severity</option>
+                    <option key="affected-sort" value="affected">Most Affected</option>
+                    <option key="complaints-sort" value="complaints">Most Complaints</option>
+                    <option key="recent-sort" value="recent">Recent Activity</option>
                   </select>
                 </div>
               </div>
@@ -720,7 +947,7 @@ function AdminDashboard() {
                 const isExpanded = expandedIssue === issue.id;
 
                 return (
-                  <div key={issue.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div key={issue.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-amber-300 transition-all">
                     {/* Main Card */}
                     <div className="p-6">
                       <div className="flex items-start justify-between gap-4">
@@ -739,11 +966,11 @@ function AdminDashboard() {
                             </span>
                           </div>
                           
-                          <h3 className="text-lg font-semibold text-cit-navy mb-2">{issue.title}</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">{issue.title}</h3>
                           
                           <div className="flex items-center gap-2 mb-3">
-                            <Brain size={14} className="text-cit-gold" />
-                            <span className="text-xs text-cit-gold font-medium">AI Summary</span>
+                            <Brain size={14} className="text-amber-500" />
+                            <span className="text-xs text-amber-600 font-medium">AI Summary</span>
                           </div>
                           <p className="text-sm text-gray-600 mb-4">{issue.aiSummary}</p>
 
@@ -762,7 +989,7 @@ function AdminDashboard() {
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock size={14} />
-                              {formatDistanceToNow(new Date(issue.lastActivity), { addSuffix: true })}
+                              {safeFormatDistanceToNow(issue.lastActivity)}
                             </span>
                           </div>
 
@@ -772,7 +999,7 @@ function AdminDashboard() {
                                 📍 {loc}
                               </span>
                             ))}
-                            <span className="px-2 py-1 bg-cit-navy/10 text-cit-navy text-xs rounded font-medium">
+                            <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded font-medium">
                               {issue.category}
                             </span>
                           </div>
@@ -781,7 +1008,7 @@ function AdminDashboard() {
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => setExpandedIssue(isExpanded ? null : issue.id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-cit-navy text-white rounded-lg text-sm font-medium hover:bg-cit-navy/90 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
                           >
                             <Eye size={16} />
                             {isExpanded ? 'Hide' : 'View'} Details
@@ -794,13 +1021,13 @@ function AdminDashboard() {
                     {/* Expanded Details */}
                     {isExpanded && (
                       <div className="border-t border-gray-200 bg-gray-50 p-6">
-                        <h4 className="font-semibold text-cit-navy mb-4 flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                           <Layers size={16} />
                           Related Individual Complaints ({issue.relatedIssues.length})
                         </h4>
                         <div className="space-y-3">
                           {issue.relatedIssues.map((related) => (
-                            <div key={related.id} className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+                            <div key={related.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-gray-800">{related.title}</p>
                                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
@@ -821,7 +1048,7 @@ function AdminDashboard() {
                         </div>
 
                         {/* Sentiment Analysis */}
-                        <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                        <div className="mt-6 p-4 bg-white rounded-xl border border-gray-200">
                           <h5 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                             <BarChart3 size={16} />
                             Sentiment Analysis
@@ -830,12 +1057,12 @@ function AdminDashboard() {
                             <div className="flex-1">
                               <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-full rounded-full ${issue.sentiment < -0.5 ? 'bg-red-500' : issue.sentiment < -0.25 ? 'bg-orange-500' : 'bg-yellow-500'}`}
+                                  className={`h-full rounded-full ${issue.sentiment < -0.5 ? 'bg-red-500' : issue.sentiment < -0.25 ? 'bg-orange-500' : 'bg-amber-500'}`}
                                   style={{ width: `${Math.abs(issue.sentiment) * 100}%` }}
                                 />
                               </div>
                             </div>
-                            <span className={`text-sm font-medium ${issue.sentiment < -0.5 ? 'text-red-600' : issue.sentiment < -0.25 ? 'text-orange-600' : 'text-yellow-600'}`}>
+                            <span className={`text-sm font-medium ${issue.sentiment < -0.5 ? 'text-red-600' : issue.sentiment < -0.25 ? 'text-orange-600' : 'text-amber-600'}`}>
                               {issue.sentiment < -0.5 ? 'Very Negative' : issue.sentiment < -0.25 ? 'Negative' : 'Slightly Negative'}
                             </span>
                           </div>
@@ -848,7 +1075,7 @@ function AdminDashboard() {
             </div>
 
             {filteredAggregatedIssues.length === 0 && (
-              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
                 <Brain size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-500">No aggregated issues match your filters</p>
               </div>
@@ -858,45 +1085,74 @@ function AdminDashboard() {
 
         {/* All Issues Tab */}
         {activeTab === 'all-issues' && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-xl font-heading font-semibold mb-6">All Individual Issues</h2>
-            <div className="space-y-4">
-              {recentIssues.map((issue) => (
-                <div key={issue.issue_id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Link to={`/issues/${issue.issue_id}`} className="font-semibold hover:text-cit-gold transition-colors">
-                          {issue.title}
-                        </Link>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(issue.status)}`}>
-                          {issue.status.replace('_', ' ').toUpperCase()}
-                        </span>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-heading font-semibold text-gray-900">All Individual Issues</h2>
+              <button
+                onClick={fetchDashboardData}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors"
+              >
+                <RefreshCw size={16} />
+                Refresh
+              </button>
+            </div>
+            
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-sm text-amber-800">
+                <strong>Note:</strong> This shows formal issues reported via the "Report Issue" page. 
+                Issue observations posted in Community Feed are tracked separately as moments.
+              </p>
+            </div>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading issues...</p>
+              </div>
+            ) : recentIssues.length > 0 ? (
+              <div className="space-y-4">
+                {recentIssues.map((issue) => (
+                  <div key={issue.issue_id} className="border border-gray-200 rounded-xl p-4 hover:border-amber-300 hover:bg-gray-50 transition-all">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Link to={`/issues/${issue.issue_id}`} className="font-semibold text-gray-900 hover:text-amber-600 transition-colors">
+                            {issue.title}
+                          </Link>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(issue.status)}`}>
+                            {issue.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-2">{issue.description}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>📍 {issue.location}</span>
+                          <span>👥 {issue.affected_count} affected</span>
+                          <span>🏷️ {issue.category}</span>
+                          <span>⏰ {safeFormatDistanceToNow(issue.created_at)}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500 mb-2">{issue.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>📍 {issue.location}</span>
-                        <span>👥 {issue.affected_count} affected</span>
-                        <span>🏷️ {issue.category}</span>
-                        <span>⏰ {formatDistanceToNow(new Date(issue.created_at), { addSuffix: true })}</span>
+                      <div className="flex flex-col gap-2">
+                        {issue.status === 'reported' && (
+                          <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'acknowledged', 'Issue acknowledged')} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">Acknowledge</button>
+                        )}
+                        {issue.status === 'acknowledged' && (
+                          <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'in_progress', 'Working on it')} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition-colors">Start Work</button>
+                        )}
+                        {issue.status === 'in_progress' && (
+                          <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'resolved', 'Resolved')} className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm hover:bg-emerald-600 transition-colors">Resolve</button>
+                        )}
+                        <Link to={`/issues/${issue.issue_id}`} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors text-center">View</Link>
                       </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {issue.status === 'reported' && (
-                        <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'acknowledged', 'Issue acknowledged')} className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">Acknowledge</button>
-                      )}
-                      {issue.status === 'acknowledged' && (
-                        <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'in_progress', 'Working on it')} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm hover:bg-amber-600 transition-colors">Start Work</button>
-                      )}
-                      {issue.status === 'in_progress' && (
-                        <button onClick={() => handleUpdateIssueStatus(issue.issue_id, 'resolved', 'Resolved')} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors">Resolve</button>
-                      )}
-                      <Link to={`/issues/${issue.issue_id}`} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors text-center">View</Link>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <AlertTriangle size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 mb-2">No issues found</p>
+                <p className="text-sm text-gray-400">Issues reported by students will appear here</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -905,46 +1161,46 @@ function AdminDashboard() {
           <div>
             {/* Moderation Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                     <Clock className="text-amber-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-amber-600">{flaggedPosts.filter(p => p.status === 'pending').length}</p>
+                    <p className="text-2xl font-bold text-amber-600">{moderationStats.pending || 0}</p>
                     <p className="text-xs text-gray-500">Pending Review</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
                     <AlertCircle className="text-red-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-red-600">{flaggedPosts.filter(p => p.riskSeverity === 'critical').length}</p>
+                    <p className="text-2xl font-bold text-red-600">{flaggedPosts.filter(p => p.risk_severity === 'critical').length}</p>
                     <p className="text-xs text-gray-500">Critical Flags</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle2 className="text-green-600" size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 className="text-emerald-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-green-600">{flaggedPosts.filter(p => p.status === 'approved').length}</p>
+                    <p className="text-2xl font-bold text-emerald-600">{moderationStats.approved || 0}</p>
                     <p className="text-xs text-gray-500">Approved</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
                     <Trash2 className="text-gray-600" size={20} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-600">{flaggedPosts.filter(p => p.status === 'removed').length}</p>
+                    <p className="text-2xl font-bold text-gray-600">{moderationStats.removed || 0}</p>
                     <p className="text-xs text-gray-500">Removed</p>
                   </div>
                 </div>
@@ -952,7 +1208,7 @@ function AdminDashboard() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-6">
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Filter size={16} className="text-gray-400" />
@@ -962,9 +1218,9 @@ function AdminDashboard() {
                 <select
                   value={modRiskFilter}
                   onChange={(e) => setModRiskFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Risk Types</option>
+                  <option key="all-risk-types" value="all">All Risk Types</option>
                   {riskCategories.map(cat => (
                     <option key={cat} value={cat}>{getRiskCategoryConfig(cat).label}</option>
                   ))}
@@ -973,25 +1229,25 @@ function AdminDashboard() {
                 <select
                   value={modSeverityFilter}
                   onChange={(e) => setModSeverityFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Severity</option>
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option key="all-severity-2" value="all">All Severity</option>
+                  <option key="critical-2" value="critical">Critical</option>
+                  <option key="high-2" value="high">High</option>
+                  <option key="medium-2" value="medium">Medium</option>
+                  <option key="low-2" value="low">Low</option>
                 </select>
 
                 <select
                   value={modStatusFilter}
                   onChange={(e) => setModStatusFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="removed">Removed</option>
-                  <option value="reviewed">Reviewed</option>
+                  <option key="all-status-2" value="all">All Status</option>
+                  <option key="pending-2" value="pending">Pending</option>
+                  <option key="approved-2" value="approved">Approved</option>
+                  <option key="removed-2" value="removed">Removed</option>
+                  <option key="reviewed-2" value="reviewed">Reviewed</option>
                 </select>
 
                 <div className="ml-auto flex items-center gap-2">
@@ -999,11 +1255,11 @@ function AdminDashboard() {
                   <select
                     value={modSortBy}
                     onChange={(e) => setModSortBy(e.target.value)}
-                    className="h-9 px-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-cit-gold"
+                    className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   >
-                    <option value="severity">Severity</option>
-                    <option value="confidence">Confidence</option>
-                    <option value="recent">Most Recent</option>
+                    <option key="severity-sort-2" value="severity">Severity</option>
+                    <option key="confidence-sort" value="confidence">Confidence</option>
+                    <option key="recent-sort-2" value="recent">Most Recent</option>
                   </select>
                 </div>
               </div>
@@ -1012,17 +1268,17 @@ function AdminDashboard() {
             {/* Flagged Posts List */}
             <div className="space-y-4">
               {filteredFlaggedPosts.map((post) => {
-                const riskConfig = getRiskCategoryConfig(post.riskCategory);
-                const severityConfig = getSeverityConfig(post.riskSeverity);
+                const riskConfig = getRiskCategoryConfig(post.risk_category);
+                const severityConfig = getSeverityConfig(post.risk_severity);
                 const statusConfig = getModStatusConfig(post.status);
                 const SeverityIcon = severityConfig.icon;
 
                 return (
-                  <div key={post.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  <div key={post.flag_id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-amber-300 transition-all">
                     <div className="p-6">
                       <div className="flex items-start gap-4">
                         {/* Risk Indicator */}
-                        <div className={`w-12 h-12 rounded-lg ${severityConfig.bg} flex items-center justify-center flex-shrink-0`}>
+                        <div className={`w-12 h-12 rounded-xl ${severityConfig.bg} flex items-center justify-center flex-shrink-0`}>
                           <span className="text-2xl">{riskConfig.icon}</span>
                         </div>
 
@@ -1040,12 +1296,12 @@ function AdminDashboard() {
                               {statusConfig.label}
                             </span>
                             <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                              {Math.round(post.confidenceScore * 100)}% confidence
+                              {Math.round(post.confidence_score * 100)}% confidence
                             </span>
                           </div>
 
                           {/* Content Preview */}
-                          <div className="bg-gray-50 rounded-lg p-4 mb-4 border-l-4 border-gray-300">
+                          <div className="bg-gray-50 rounded-xl p-4 mb-4 border-l-4 border-gray-300">
                             <p className="text-sm text-gray-700 line-clamp-3">{post.content}</p>
                           </div>
 
@@ -1053,39 +1309,41 @@ function AdminDashboard() {
                           <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mb-3">
                             <span className="flex items-center gap-1">
                               <User size={12} />
-                              {post.authorName}
-                              <span className={`ml-1 px-1.5 py-0.5 rounded ${post.authorRole === 'teacher' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                {post.authorRole}
+                              {post.author_name}
+                              <span className={`ml-1 px-1.5 py-0.5 rounded ${post.author_role === 'teacher' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {post.author_role}
                               </span>
                             </span>
                             <span className="flex items-center gap-1">
                               <FileText size={12} />
-                              {post.postType}
+                              {post.post_type}
                             </span>
-                            <span>📚 {post.classroom}</span>
+                            {post.classroom && <span>📚 {post.classroom}</span>}
                             <span className="flex items-center gap-1">
                               <Clock size={12} />
-                              {formatDistanceToNow(new Date(post.flaggedAt), { addSuffix: true })}
+                              {safeFormatDistanceToNow(post.flagged_at)}
                             </span>
                             <span className="flex items-center gap-2">
-                              <ThumbsUp size={12} /> {post.interactions.likes}
-                              <MessageCircle size={12} /> {post.interactions.comments}
+                              <ThumbsUp size={12} /> {post.interactions_likes || 0}
+                              <MessageCircle size={12} /> {post.interactions_comments || 0}
                             </span>
                           </div>
 
                           {/* AI Reasoning */}
-                          <div className="flex items-start gap-2 p-3 bg-cit-navy/5 rounded-lg">
-                            <Brain size={14} className="text-cit-navy mt-0.5 flex-shrink-0" />
-                            <div>
-                              <p className="text-xs font-medium text-cit-navy mb-1">AI Analysis</p>
-                              <p className="text-xs text-gray-600">{post.aiReasoning}</p>
+                          {post.ai_reasoning && (
+                            <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl">
+                              <Brain size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium text-amber-700 mb-1">AI Analysis</p>
+                                <p className="text-xs text-gray-600">{post.ai_reasoning}</p>
+                              </div>
                             </div>
-                          </div>
+                          )}
 
                           {/* Review Info */}
-                          {post.reviewedBy && (
+                          {post.reviewed_by && (
                             <div className="mt-3 text-xs text-gray-500">
-                              Reviewed by {post.reviewedBy} • {formatDistanceToNow(new Date(post.reviewedAt), { addSuffix: true })}
+                              Reviewed by {post.reviewed_by} • {safeFormatDistanceToNow(post.reviewed_at)}
                             </div>
                           )}
                         </div>
@@ -1094,21 +1352,21 @@ function AdminDashboard() {
                         {post.status === 'pending' && (
                           <div className="flex flex-col gap-2 flex-shrink-0">
                             <button
-                              onClick={() => handleApprovePost(post.id)}
-                              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors"
+                              onClick={() => handleApprovePost(post.flag_id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-600 transition-colors"
                             >
                               <CheckCircle2 size={16} />
                               Approve
                             </button>
                             <button
-                              onClick={() => handleRemovePost(post.id)}
+                              onClick={() => handleRemovePost(post.flag_id)}
                               className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                             >
                               <Trash2 size={16} />
                               Remove
                             </button>
                             <button
-                              onClick={() => handleMarkReviewed(post.id)}
+                              onClick={() => handleMarkReviewed(post.flag_id)}
                               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                             >
                               <Eye size={16} />
@@ -1124,50 +1382,557 @@ function AdminDashboard() {
             </div>
 
             {filteredFlaggedPosts.length === 0 && (
-              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
                 <Shield size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-500">No flagged posts match your filters</p>
               </div>
             )}
 
             {/* Moderation Log */}
-            <div className="mt-8 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="mt-8 bg-white rounded-2xl border border-gray-200">
               <div className="p-4 border-b border-gray-200">
-                <h3 className="font-semibold text-cit-navy flex items-center gap-2">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                   <FileText size={18} />
                   Recent Moderation Actions
                 </h3>
               </div>
-              <div className="divide-y divide-gray-100">
-                {moderationLog.slice(0, 5).map((log) => (
-                  <div key={log.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        log.action === 'approved' ? 'bg-green-100' : 
-                        log.action === 'removed' ? 'bg-red-100' : 'bg-blue-100'
-                      }`}>
-                        {log.action === 'approved' ? <CheckCircle2 size={16} className="text-green-600" /> :
-                         log.action === 'removed' ? <Trash2 size={16} className="text-red-600" /> :
-                         <Eye size={16} className="text-blue-600" />}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">
-                          Post <span className="font-mono text-xs bg-gray-100 px-1 rounded">{log.postId}</span> {log.action}
-                        </p>
-                        <p className="text-xs text-gray-500">{log.reason}</p>
+              {moderationLog.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {moderationLog.slice(0, 5).map((log) => (
+                    <div key={log.log_id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          log.action === 'approved' ? 'bg-green-100' : 
+                          log.action === 'removed' ? 'bg-red-100' : 'bg-blue-100'
+                        }`}>
+                          {log.action === 'approved' ? <CheckCircle2 size={16} className="text-green-600" /> :
+                           log.action === 'removed' ? <Trash2 size={16} className="text-red-600" /> :
+                           <Eye size={16} className="text-blue-600" />}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            Post <span className="font-mono text-xs bg-gray-100 px-1 rounded">{log.post_id}</span> {log.action}
+                          </p>
+                          {log.reason && <p className="text-xs text-gray-500">{log.reason}</p>}
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <p>{log.admin_name}</p>
+                        <p>{safeFormatDistanceToNow(log.timestamp)}</p>
                       </div>
                     </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <p>{log.adminName}</p>
-                      <p>{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-500">
+                  <FileText size={32} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No moderation actions yet</p>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* AI Analysis Results Modal */}
+      {showAnalysisModal && analysisResults && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Brain size={28} className="text-amber-400" />
+                  <div>
+                    <h2 className="text-2xl font-bold">AI Analysis Results</h2>
+                    <p className="text-gray-300">Completed at {new Date(analysisResults.analysis_time).toLocaleString()}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAnalysisModal(false)}
+                  className="text-white hover:text-gray-200 transition-colors"
+                >
+                  <XCircle size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {(() => {
+                const clusters = analysisResults.aggregated_issues;
+                const totalIssues = clusters.reduce((sum, cluster) => sum + cluster.relatedCount, 0);
+                const totalAffected = clusters.reduce((sum, cluster) => sum + cluster.totalAffected, 0);
+                const criticalClusters = clusters.filter(c => c.severity === 'critical');
+                const highClusters = clusters.filter(c => c.severity === 'high');
+                const pendingClusters = clusters.filter(c => c.status === 'reported' || c.status === 'acknowledged');
+                const mostAffected = clusters.reduce((max, cluster) => 
+                  cluster.totalAffected > max.totalAffected ? cluster : max
+                );
+
+                return (
+                  <>
+                    {/* Overview Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                      <div className="bg-amber-50 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-amber-600">{analysisResults.clusters_found}</div>
+                        <div className="text-sm text-amber-800">Issue Clusters</div>
+                      </div>
+                      <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-emerald-600">{totalIssues}</div>
+                        <div className="text-sm text-emerald-800">Issues Analyzed</div>
+                      </div>
+                      <div className="bg-orange-50 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-orange-600">{totalAffected}</div>
+                        <div className="text-sm text-orange-800">Students Affected</div>
+                      </div>
+                      <div className="bg-blue-50 rounded-xl p-4 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{pendingClusters.length}</div>
+                        <div className="text-sm text-blue-800">Need Attention</div>
+                      </div>
+                    </div>
+
+                    {/* Recommendations */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8">
+                      <h3 className="text-lg font-semibold text-amber-800 mb-4 flex items-center gap-2">
+                        <AlertTriangle size={20} />
+                        AI Recommendations
+                      </h3>
+                      <div className="space-y-2 text-sm">
+                        {criticalClusters.length > 0 && (
+                          <div className="flex items-center gap-2 text-red-700">
+                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                            <strong>URGENT:</strong> Address {criticalClusters.length} critical issue cluster(s) immediately
+                          </div>
+                        )}
+                        {highClusters.length > 0 && (
+                          <div className="flex items-center gap-2 text-orange-700">
+                            <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                            <strong>HIGH PRIORITY:</strong> Focus on {highClusters.length} high-priority cluster(s)
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-amber-700">
+                          <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                          <strong>HIGHEST IMPACT:</strong> "{mostAffected.title}" affects {mostAffected.totalAffected} students
+                        </div>
+                        {pendingClusters.length > 0 && (
+                          <div className="flex items-center gap-2 text-blue-700">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <strong>ACTION NEEDED:</strong> {pendingClusters.length} cluster(s) require immediate attention
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Cluster Details */}
+                    <div className="space-y-6">
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <Layers size={20} />
+                        Detailed Cluster Analysis
+                      </h3>
+                      
+                      {clusters.map((cluster, index) => {
+                        const severityConfig = getSeverityConfig(cluster.severity);
+                        const SeverityIcon = severityConfig.icon;
+                        
+                        return (
+                          <div key={cluster.id} className="border border-gray-200 rounded-xl p-6 bg-white">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="text-lg font-semibold text-gray-800">
+                                    {index + 1}. {cluster.title}
+                                  </span>
+                                  <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${severityConfig.bg} ${severityConfig.text}`}>
+                                    <SeverityIcon size={12} />
+                                    {severityConfig.label}
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <Users size={14} className="text-gray-500" />
+                                    <span>{cluster.totalAffected} affected</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Layers size={14} className="text-gray-500" />
+                                    <span>{cluster.relatedCount} issues</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`w-3 h-3 rounded-full ${getStatusColor(cluster.status).split(' ')[0]}`}></span>
+                                    <span>{cluster.status.replace('_', ' ')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">📍</span>
+                                    <span>{cluster.locations.join(', ')}</span>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-gray-50 rounded-xl p-4">
+                                  <div className="flex items-start gap-2 mb-2">
+                                    <Brain size={16} className="text-amber-500 mt-0.5" />
+                                    <span className="text-sm font-medium text-amber-600">AI Analysis</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700">{cluster.aiSummary}</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Related Issues Preview */}
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <h5 className="text-sm font-medium text-gray-600 mb-2">Related Issues ({cluster.relatedIssues.length})</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {cluster.relatedIssues.slice(0, 4).map((issue) => (
+                                  <div key={issue.id} className="text-xs bg-gray-50 rounded-lg p-2 flex items-center justify-between">
+                                    <span className="truncate">{issue.title}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-xs ${getStatusColor(issue.status)}`}>
+                                      {issue.status}
+                                    </span>
+                                  </div>
+                                ))}
+                                {cluster.relatedIssues.length > 4 && (
+                                  <div className="text-xs text-gray-500 italic">
+                                    +{cluster.relatedIssues.length - 4} more issues...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between items-center">
+                      <div className="text-sm text-gray-500">
+                        💡 Switch to "AI Issue Insights" tab to interact with these clusters
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            setShowAnalysisModal(false);
+                            setActiveTab('ai-insights');
+                          }}
+                          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                        >
+                          View Insights Tab
+                        </button>
+                        <button
+                          onClick={() => setShowAnalysisModal(false)}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Opportunity Modal */}
+      {showOpportunityModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Briefcase size={28} className="text-amber-400" />
+                  <div>
+                    <h2 className="text-2xl font-bold">Add New Opportunity</h2>
+                    <p className="text-gray-300">Create a verified opportunity for students</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOpportunityModal(false)}
+                  className="text-white hover:text-gray-200 transition-colors"
+                >
+                  <XCircle size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <form onSubmit={handleOpportunitySubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={opportunityForm.title}
+                    onChange={(e) => handleOpportunityFormChange('title', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="e.g., Summer Internship at Google"
+                    required
+                  />
+                </div>
+
+                {/* Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={opportunityForm.opp_type}
+                    onChange={(e) => handleOpportunityFormChange('opp_type', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    required
+                  >
+                    <option value="internship">💼 Internship</option>
+                    <option value="scholarship">🎓 Scholarship</option>
+                    <option value="workshop">🛠️ Workshop</option>
+                    <option value="event">📅 Event</option>
+                    <option value="resource">📚 Resource</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={opportunityForm.description}
+                    onChange={(e) => handleOpportunityFormChange('description', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    rows={4}
+                    placeholder="Describe the opportunity, requirements, and benefits..."
+                    required
+                  />
+                </div>
+
+                {/* Organization & Location */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Building size={14} className="inline mr-1" />
+                      Organization
+                    </label>
+                    <input
+                      type="text"
+                      value={opportunityForm.organization}
+                      onChange={(e) => handleOpportunityFormChange('organization', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="e.g., Google, Microsoft"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <MapPin size={14} className="inline mr-1" />
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={opportunityForm.location}
+                      onChange={(e) => handleOpportunityFormChange('location', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="e.g., Bangalore, Remote"
+                    />
+                  </div>
+                </div>
+
+                {/* Duration & Stipend */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Clock size={14} className="inline mr-1" />
+                      Duration
+                    </label>
+                    <input
+                      type="text"
+                      value={opportunityForm.duration}
+                      onChange={(e) => handleOpportunityFormChange('duration', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="e.g., 3 months, 6 weeks"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <DollarSign size={14} className="inline mr-1" />
+                      Stipend/Compensation
+                    </label>
+                    <input
+                      type="text"
+                      value={opportunityForm.stipend}
+                      onChange={(e) => handleOpportunityFormChange('stipend', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="e.g., ₹50,000/month, Free"
+                    />
+                  </div>
+                </div>
+
+                {/* Eligibility */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <GraduationCap size={14} className="inline mr-1" />
+                    Eligibility/Requirements
+                  </label>
+                  <input
+                    type="text"
+                    value={opportunityForm.eligibility}
+                    onChange={(e) => handleOpportunityFormChange('eligibility', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="e.g., 3rd/4th year CSE students, GPA 3.5+"
+                  />
+                </div>
+
+                {/* Deadline & Link */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Calendar size={14} className="inline mr-1" />
+                      Deadline
+                    </label>
+                    <input
+                      type="date"
+                      value={opportunityForm.deadline}
+                      onChange={(e) => handleOpportunityFormChange('deadline', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <LinkIcon size={14} className="inline mr-1" />
+                      Application Link
+                    </label>
+                    <input
+                      type="url"
+                      value={opportunityForm.link}
+                      onChange={(e) => handleOpportunityFormChange('link', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                {/* Department Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Target Departments (optional)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil', 'All Departments'].map(dept => (
+                      <button
+                        key={dept}
+                        type="button"
+                        onClick={() => {
+                          if (dept === 'All Departments') {
+                            handleOpportunityFormChange('department', []);
+                          } else {
+                            const current = opportunityForm.department || [];
+                            if (current.includes(dept)) {
+                              handleOpportunityFormChange('department', current.filter(d => d !== dept));
+                            } else {
+                              handleOpportunityFormChange('department', [...current, dept]);
+                            }
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          (dept === 'All Departments' && (!opportunityForm.department || opportunityForm.department.length === 0)) ||
+                          (opportunityForm.department && opportunityForm.department.includes(dept))
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Year Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Target Year (optional)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4].map(year => (
+                      <button
+                        key={year}
+                        type="button"
+                        onClick={() => {
+                          const current = opportunityForm.year || [];
+                          if (current.includes(year)) {
+                            handleOpportunityFormChange('year', current.filter(y => y !== year));
+                          } else {
+                            handleOpportunityFormChange('year', [...current, year]);
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          opportunityForm.year && opportunityForm.year.includes(year)
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Year {year}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => handleOpportunityFormChange('year', [])}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        !opportunityForm.year || opportunityForm.year.length === 0
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      All Years
+                    </button>
+                  </div>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={18} className="text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-emerald-800">Verified Opportunity</p>
+                      <p className="text-xs text-emerald-700">
+                        Opportunities created by admin are automatically marked as verified and will display a verification badge to students.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowOpportunityModal(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={opportunitySubmitting}
+                  className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {opportunitySubmitting ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Create Opportunity
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

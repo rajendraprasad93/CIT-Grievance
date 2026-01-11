@@ -8,6 +8,7 @@
 *.swp
 *.swo
 *~
+.kiro/
 
 # ===================
 # Dependencies
@@ -35,6 +36,7 @@ node_modules/
 tests/
 test/
 __tests__/
+test_*.py
 
 # ===================
 # Build & Production
@@ -45,24 +47,30 @@ __tests__/
 dist/
 next-env.d.ts
 *.tsbuildinfo
+frontend/build/
 
 # ===================
 # Environment & Secrets (CRITICAL - NEVER COMMIT)
 # ===================
 .env
-.env.*
-!.env.example
-*.env
+.env.local
+.env.development
+.env.production
+.env.test
 backend/.env
 frontend/.env
 **/.env
-**/.env.*
-*token.json*
-*credentials.json*
-*.pem
-*.key
-*secret*
-*api_key*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# ===================
+# Database Files
+# ===================
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
 
 # ===================
 # Logs
@@ -80,6 +88,7 @@ dump.rdb
 .DS_Store
 Thumbs.db
 desktop.ini
+*.bak
 
 # ===================
 # Python
@@ -90,7 +99,10 @@ __pycache__/
 *.pyd
 venv/
 .venv/
+env/
 *.egg-info/
+.Python
+pip-log.txt
 
 # ===================
 # Development Tools
@@ -135,3 +147,5 @@ design_guidelines.json
 # ===================
 backend/uploads/*
 !backend/uploads/.gitkeep
+frontend/public/uploads/*
+!frontend/public/uploads/.gitkeep

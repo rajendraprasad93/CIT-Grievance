@@ -93,7 +93,7 @@ code {
         @apply bg-white text-foreground;
     }
     h1, h2, h3, h4, h5, h6 {
-        @apply font-heading text-[#002B5C];
+        @apply font-heading;
     }
     h1 {
         @apply text-[28px] md:text-[32px] font-bold leading-tight;

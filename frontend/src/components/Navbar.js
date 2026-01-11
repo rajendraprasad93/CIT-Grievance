@@ -1,5 +1,9 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, Users, Briefcase, AlertCircle, BarChart3, User, LogOut } from 'lucide-react';
+import { 
+  Search, Bell, User, LogOut, Home, Zap, AlertCircle, 
+  BookOpen, BarChart3, Settings, ChevronDown,
+  Menu, X, GraduationCap
+} from 'lucide-react';
 import { useState } from 'react';
 import GlobalSearch from './GlobalSearch';
 import NotificationPanel from './NotificationPanel';
@@ -12,6 +16,7 @@ function Navbar({ user }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -30,182 +35,188 @@ function Navbar({ user }) {
 
   const isActive = (path) => location.pathname === path;
 
+  const navItems = [
+    { path: '/community', label: 'Home', icon: Home, emoji: '🏠' },
+    { path: '/opportunities', label: 'Opportunities', icon: Zap, emoji: '💼' },
+    { path: '/issues', label: 'Issues', icon: AlertCircle, emoji: '⚠️' },
+  ];
+
+  if (user?.role === 'student') {
+    navItems.push({ path: '/my-class', label: 'My Class', icon: BookOpen, emoji: '📚' });
+  }
+  if (user?.role === 'admin') {
+    navItems.push({ path: '/admin', label: 'Admin', icon: BarChart3, emoji: '⚙️' });
+  }
+  if (user?.role === 'teacher') {
+    navItems.push({ path: '/teacher', label: 'Teacher', icon: BarChart3, emoji: '👨‍🏫' });
+  }
+
   return (
-    <nav className="sticky top-0 z-50 bg-cit-navy shadow-nav" data-testid="main-navbar">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-8">
-            <Link to="/community" className="flex items-center gap-3" data-testid="logo-link">
-              <img 
-                src="/cit-logo.png" 
-                alt="CIT Chennai" 
-                className="h-10 w-auto"
-              />
-              <span className="font-heading text-xl font-bold text-white hidden sm:block">
-                CCCP
-              </span>
+    <>
+      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200" data-testid="main-navbar">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/community" className="flex items-center gap-2.5 group" data-testid="logo-link">
+              <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center group-hover:bg-amber-600 transition-colors">
+                <GraduationCap size={20} className="text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <span className="font-bold text-lg text-gray-900">CCCP</span>
+                <span className="block text-[10px] text-gray-500 -mt-1 font-medium">Campus Connect</span>
+              </div>
             </Link>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
-              <Link
-                to="/community"
-                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
-                  isActive('/community') 
-                    ? 'text-cit-gold border-cit-gold' 
-                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
-                }`}
-                data-testid="nav-community"
-              >
-                COMMUNITY
-              </Link>
-              <Link
-                to="/opportunities"
-                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
-                  isActive('/opportunities') 
-                    ? 'text-cit-gold border-cit-gold' 
-                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
-                }`}
-                data-testid="nav-opportunities"
-              >
-                OPPORTUNITIES
-              </Link>
-              <Link
-                to="/issues"
-                className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
-                  isActive('/issues') 
-                    ? 'text-cit-gold border-cit-gold' 
-                    : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
-                }`}
-                data-testid="nav-issues"
-              >
-                TRACK ISSUES
-              </Link>
-              {user?.role === 'admin' && (
+              {navItems.map((item) => (
                 <Link
-                  to="/admin"
-                  className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
-                    isActive('/admin') 
-                      ? 'text-cit-gold border-cit-gold' 
-                      : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
+                  key={item.path}
+                  to={item.path}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    isActive(item.path)
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`}
-                  data-testid="nav-admin"
                 >
-                  ADMIN
+                  <span className="mr-1.5">{item.emoji}</span>
+                  {item.label}
                 </Link>
-              )}
-              {user?.role === 'teacher' && (
-                <Link
-                  to="/teacher"
-                  className={`px-4 py-2 text-sm font-semibold transition-all border-b-2 ${
-                    location.pathname.startsWith('/teacher') 
-                      ? 'text-cit-gold border-cit-gold' 
-                      : 'text-white border-transparent hover:text-cit-gold hover:border-cit-gold'
-                  }`}
-                  data-testid="nav-teacher"
-                >
-                  TEACHER PORTAL
-                </Link>
-              )}
+              ))}
             </div>
-          </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-3">
-            {/* Search Button */}
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className="w-10 h-10 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-              aria-label="Search"
-            >
-              <Search size={20} className="text-white" />
-            </button>
-
-            {/* Notifications */}
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative w-10 h-10 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={20} className="text-white" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-cit-gold text-cit-navy text-xs font-bold rounded-full flex items-center justify-center">
-                3
-              </span>
-            </button>
-            
-            {/* User Avatar */}
-            <div className="relative">
+            {/* Right Actions */}
+            <div className="flex items-center gap-2">
+              {/* Search */}
               <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                data-testid="user-menu-button"
+                onClick={() => setShowSearch(true)}
+                className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-500 text-sm transition-all"
               >
-                {user?.picture ? (
-                  <img
-                    src={user.picture}
-                    alt={user.name}
-                    className="w-10 h-10 rounded ring-2 ring-white/30 object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded bg-cit-gold text-cit-navy flex items-center justify-center font-bold ring-2 ring-white/30">
-                    {user?.name?.charAt(0)}
-                  </div>
-                )}
+                <Search size={16} />
+                <span>Search...</span>
               </button>
 
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded border border-gray-200 shadow-card-hover py-2 animate-slide-in" data-testid="user-dropdown">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="font-semibold text-sm text-cit-navy">{user?.name}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
-                  </div>
-                  <Link
-                    to={`/profile/${user?.user_id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowMenu(false)}
-                    data-testid="nav-profile"
-                  >
-                    <User size={18} className="text-cit-navy" />
-                    <span className="font-medium text-gray-700">Profile</span>
-                  </Link>
-                  {user?.role === 'admin' && (
-                    <Link
-                      to="/admin"
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                      onClick={() => setShowMenu(false)}
-                      data-testid="nav-admin-dropdown"
-                    >
-                      <BarChart3 size={18} className="text-cit-navy" />
-                      <span className="font-medium text-gray-700">Admin Dashboard</span>
-                    </Link>
+              {/* Mobile Search */}
+              <button
+                onClick={() => setShowSearch(true)}
+                className="md:hidden w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
+              >
+                <Search size={18} className="text-gray-600" />
+              </button>
+
+              {/* Notifications */}
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
+              >
+                <Bell size={18} className="text-gray-600" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  3
+                </span>
+              </button>
+
+              {/* User Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-all"
+                  data-testid="user-menu-button"
+                >
+                  {user?.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-sm">
+                      {user?.name?.charAt(0)}
+                    </div>
                   )}
-                  {user?.role === 'teacher' && (
-                    <Link
-                      to="/teacher"
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                      onClick={() => setShowMenu(false)}
-                      data-testid="nav-teacher-dropdown"
-                    >
-                      <BarChart3 size={18} className="text-cit-navy" />
-                      <span className="font-medium text-gray-700">Teacher Portal</span>
-                    </Link>
-                  )}
-                  <div className="border-t border-gray-100 my-2"></div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors w-full text-left text-red-600"
-                    data-testid="logout-button"
-                  >
-                    <LogOut size={18} />
-                    <span className="font-medium">Logout</span>
-                  </button>
-                </div>
-              )}
+                  <ChevronDown size={14} className="text-gray-400 hidden sm:block" />
+                </button>
+
+                {showMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-gray-200 shadow-lg py-1 z-50 animate-scale-in" data-testid="user-dropdown">
+                      {/* User Info */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="font-semibold text-gray-900 text-sm">{user?.name}</p>
+                        <p className="text-xs text-gray-500">{user?.department} • Year {user?.year}</p>
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="py-1">
+                        <Link
+                          to={`/profile/${user?.user_id}`}
+                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-all text-sm"
+                          onClick={() => setShowMenu(false)}
+                        >
+                          <User size={16} />
+                          My Profile
+                        </Link>
+                        <Link
+                          to="/settings"
+                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-all text-sm"
+                          onClick={() => setShowMenu(false)}
+                        >
+                          <Settings size={16} />
+                          Settings
+                        </Link>
+                      </div>
+
+                      <div className="border-t border-gray-100" />
+
+                      <div className="py-1">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-all w-full text-sm"
+                          data-testid="logout-button"
+                        >
+                          <LogOut size={16} />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile Menu Toggle */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all"
+              >
+                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-gray-100 animate-slide-in">
+            <div className="px-4 py-3 space-y-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    isActive(item.path)
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-lg">{item.emoji}</span>
+                  <span className="font-medium text-sm">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </nav>
 
       {/* Global Search Modal */}
       <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
@@ -213,26 +224,26 @@ function Navbar({ user }) {
       {/* Notification Panel */}
       <NotificationPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 
-      {/* Mobile Bottom Nav - CIT Style */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-cit-navy border-t border-white/10 flex items-center justify-around py-2 z-50 shadow-nav">
-        <Link to="/community" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/community') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <Users size={22} />
-          <span className="text-xs font-medium">Home</span>
-        </Link>
-        <Link to="/opportunities" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/opportunities') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <Briefcase size={22} />
-          <span className="text-xs font-medium">Opps</span>
-        </Link>
-        <Link to="/issues" className={`flex flex-col items-center gap-1 p-2 transition-all ${isActive('/issues') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <BarChart3 size={22} />
-          <span className="text-xs font-medium">Track</span>
-        </Link>
-        <Link to={`/profile/${user?.user_id}`} className={`flex flex-col items-center gap-1 p-2 transition-all ${location.pathname.includes('/profile') ? 'text-cit-gold' : 'text-white/70'}`}>
-          <User size={22} />
-          <span className="text-xs font-medium">Profile</span>
-        </Link>
+      {/* Mobile Bottom Nav */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <div className="flex items-center justify-around py-2">
+          {navItems.slice(0, 4).map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center gap-0.5 p-2 rounded-lg transition-all ${
+                isActive(item.path)
+                  ? 'text-amber-600'
+                  : 'text-gray-400'
+              }`}
+            >
+              <item.icon size={20} />
+              <span className="text-[10px] font-medium">{item.label.split(' ')[0]}</span>
+            </Link>
+          ))}
+        </div>
       </div>
-    </nav>
+    </>
   );
 }
 

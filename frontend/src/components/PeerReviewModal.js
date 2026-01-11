@@ -1,40 +1,55 @@
 import { useState } from 'react';
 import { X, Star } from 'lucide-react';
+import { apiPost } from '../lib/api';
 
 /**
- * PeerReviewModal - Tier 6: Trust & Reputation
+ * PeerReviewModal - Connected to backend
  * Rate and review helpful peers
  */
 function PeerReviewModal({ isOpen, onClose, user, onSubmit }) {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [review, setReview] = useState('');
-  const [category, setCategory] = useState('helpful');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
-    if (rating > 0) {
-      onSubmit({
-        userId: user.id,
+  const handleSubmit = async () => {
+    if (rating === 0) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await apiPost(`/api/users/${user.user_id}/reviews`, {
         rating,
-        review,
-        category,
+        review_text: review || null,
       });
-      // Reset
+      
+      if (onSubmit) {
+        onSubmit({
+          userId: user.user_id,
+          rating,
+          review,
+        });
+      }
+      
+      // Reset and close
       setRating(0);
       setReview('');
-      setCategory('helpful');
       onClose();
+    } catch (error) {
+      console.error('Review error:', error);
+      if (error.message.includes('already reviewed')) {
+        setError('You have already reviewed this user');
+      } else {
+        setError('Failed to submit review. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
-
-  const categories = [
-    { value: 'helpful', label: 'Helpful Tutor', emoji: '📚' },
-    { value: 'accurate', label: 'Accurate Info', emoji: '✓' },
-    { value: 'responsive', label: 'Quick Response', emoji: '⚡' },
-    { value: 'friendly', label: 'Friendly', emoji: '😊' },
-  ];
 
   return (
     <div
@@ -60,14 +75,29 @@ function PeerReviewModal({ isOpen, onClose, user, onSubmit }) {
         <div className="px-6 py-6 space-y-6">
           {/* User Info */}
           <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/5">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 text-white flex items-center justify-center font-bold text-lg">
-              {user?.name?.charAt(0)}
-            </div>
+            {user?.picture ? (
+              <img
+                src={user.picture}
+                alt={user.name}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 text-white flex items-center justify-center font-bold text-lg">
+                {user?.name?.charAt(0)}
+              </div>
+            )}
             <div>
               <p className="font-semibold">{user?.name}</p>
               <p className="text-sm text-muted-foreground">{user?.department} • Year {user?.year}</p>
             </div>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Star Rating */}
           <div>
@@ -99,27 +129,6 @@ function PeerReviewModal({ isOpen, onClose, user, onSubmit }) {
             )}
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-semibold mb-3">What did they help with?</label>
-            <div className="grid grid-cols-2 gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setCategory(cat.value)}
-                  className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                    category === cat.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/30'
-                  }`}
-                >
-                  <span className="mr-2">{cat.emoji}</span>
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Review Text */}
           <div>
             <label className="block text-sm font-semibold mb-2">
@@ -141,10 +150,17 @@ function PeerReviewModal({ isOpen, onClose, user, onSubmit }) {
           <div className="flex gap-3">
             <button
               onClick={handleSubmit}
-              disabled={rating === 0}
+              disabled={rating === 0 || loading}
               className="flex-1 h-12 px-6 rounded-xl bg-primary text-white hover:bg-primary/90 font-semibold transition-all shadow-button disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Review
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Submitting...
+                </span>
+              ) : (
+                'Submit Review'
+              )}
             </button>
             <button
               onClick={onClose}

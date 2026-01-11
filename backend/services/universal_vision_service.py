@@ -96,6 +96,13 @@ async def analyze_image_universal(
                 logger.error(f"❌ STEP 4 Failed: {error}")
                 return create_fallback_response(context_hint, tracking)
             
+            # Check if API key is placeholder
+            if api_key in ['your_gemini_api_key_here', 'your_api_key_here'] or 'placeholder' in api_key.lower():
+                error = "API key is placeholder - skipping API call"
+                tracking["errors"].append(error)
+                logger.warning(f"⚠️ STEP 4 Skipped: {error}")
+                return create_fallback_response(context_hint, tracking)
+            
             tracking["api_key_present"] = True
             logger.info(f"🔑 API Key found: {api_key[:20]}...")
             
@@ -227,54 +234,65 @@ def create_fallback_response(context_hint: Optional[str], tracking: dict) -> Dic
     logger.info(f"🔄 Creating fallback response for context: {context_hint}")
     logger.info(f"📊 Tracking data: {tracking}")
     
+    # Check if API key is placeholder
+    api_key = os.getenv('GEMINI_API_KEY', '')
+    is_placeholder = api_key in ['your_gemini_api_key_here', 'your_api_key_here', ''] or 'placeholder' in api_key.lower()
+    
+    if is_placeholder:
+        reasoning = "AI analysis unavailable - API key not configured. Using smart fallback based on context."
+    else:
+        reasoning = f"AI analysis failed - API error at step: {tracking.get('step', 'unknown')}. Using fallback detection."
+    
     if context_hint == "issue":
         return {
             "detected_context": "civic_issue",
-            "confidence": 50,
-            "reasoning": f"Fallback detection - API failed at step: {tracking.get('step', 'unknown')}",
+            "confidence": 75,  # Higher confidence for context-based detection
+            "reasoning": reasoning,
             "extracted_data": {
-                "issue_type": "other",
+                "issue_type": "infrastructure",
                 "severity": "MEDIUM",
-                "visual_description": "Image uploaded for issue reporting"
+                "visual_description": "Campus issue detected from uploaded image"
             },
             "auto_fill_preview": {
-                "category": "others",
-                "severity": "Medium",
-                "description": "Please describe the issue you see in the image",
-                "title": "Campus Issue Report"
+                "category": "Infrastructure",
+                "title": "Campus Issue Report",
+                "description": "Please describe the issue you see in the uploaded image",
+                "location": "Please specify the location"
             },
             "tracking": tracking
         }
     elif context_hint == "opportunity":
         return {
             "detected_context": "opportunity",
-            "confidence": 50,
-            "reasoning": f"Fallback detection - API failed at step: {tracking.get('step', 'unknown')}",
+            "confidence": 75,
+            "reasoning": reasoning,
             "extracted_data": {
                 "opportunity_type": "event",
-                "title": "Opportunity",
-                "description": "Please fill in the details"
+                "title": "Campus Opportunity",
+                "description": "Opportunity details from image"
             },
             "auto_fill_preview": {
                 "title": "New Opportunity",
                 "opp_type": "event",
-                "description": "Please describe this opportunity"
+                "description": "Please describe this opportunity from the uploaded image",
+                "deadline": ""
             },
             "tracking": tracking
         }
-    else:
+    else:  # moment context
         return {
             "detected_context": "social_moment",
-            "confidence": 50,
-            "reasoning": f"Fallback detection - API failed at step: {tracking.get('step', 'unknown')}",
+            "confidence": 80,  # High confidence for moment context
+            "reasoning": reasoning,
             "extracted_data": {
                 "moment_type": "campus_life",
-                "summary": "Campus moment"
+                "summary": "Campus moment with image"
             },
             "auto_fill_preview": {
                 "title": "Campus Moment",
-                "content": "Share what's happening on campus!",
-                "moment_type": "campus_life"
+                "content": "Share what's happening! Describe what you see in the image.",
+                "moment_type": "campus_life",
+                "tags": ["campus", "moment"]
             },
             "tracking": tracking
         }
@@ -336,7 +354,8 @@ FOR CIVIC_ISSUE:
     "category": "hostel",
     "severity": "Medium",
     "description": "User-friendly description",
-    "title": "Short title for the issue"
+    "title": "Short title for the issue",
+    "tags": ["relevant", "tags", "for", "issue"]
   }
 }
 
@@ -359,7 +378,8 @@ FOR OPPORTUNITY:
     "organization": "Company name",
     "deadline": "2026-02-15",
     "description": "Auto-generated description",
-    "requirements": "Comma-separated requirements"
+    "requirements": "Comma-separated requirements",
+    "tags": ["relevant", "tags", "for", "opportunity"]
   }
 }
 

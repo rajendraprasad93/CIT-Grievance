@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { AlertCircle, CheckCircle, Clock, TrendingUp, Users, Filter, Plus } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, TrendingUp, Users, Filter, Plus, AlertTriangle, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { apiGet } from "../lib/api";
 
@@ -50,26 +50,30 @@ function IssueList() {
   const getStatusStyle = (status) => {
     const styles = {
       reported: {
-        bg: "bg-cit-gold/20",
-        text: "text-cit-navy",
+        bg: "bg-amber-50",
+        text: "text-amber-700",
+        border: "border-amber-200",
         icon: AlertCircle,
         label: "Reported",
       },
       acknowledged: {
-        bg: "bg-cit-navy/10",
-        text: "text-cit-navy",
+        bg: "bg-blue-50",
+        text: "text-blue-700",
+        border: "border-blue-200",
         icon: Clock,
         label: "Acknowledged",
       },
       in_progress: {
-        bg: "bg-cit-gold/30",
-        text: "text-cit-navy",
+        bg: "bg-orange-50",
+        text: "text-orange-700",
+        border: "border-orange-200",
         icon: TrendingUp,
         label: "In Progress",
       },
       resolved: {
-        bg: "bg-green-100",
-        text: "text-green-700",
+        bg: "bg-emerald-50",
+        text: "text-emerald-700",
+        border: "border-emerald-200",
         icon: CheckCircle,
         label: "Resolved",
       },
@@ -78,134 +82,162 @@ function IssueList() {
   };
 
   return (
-    <div className="min-h-screen bg-white pb-20 md:pb-0">
-      {/* Hero Section */}
-      <div className="bg-cit-navy text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-[28px] md:text-[32px] font-heading font-bold text-white mb-2" data-testid="issue-list-title">
-            Campus Issues & Signals
-          </h1>
-          <p className="text-white/80 text-[15px]">
-            Track and resolve campus issues together. React with "Affected" to escalate issues
-          </p>
+    <div className="min-h-screen bg-[#FAFAFA] pb-24 md:pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">Track & Resolve ⚠️</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900" data-testid="issue-list-title">
+                Campus <span className="text-amber-600">Issues</span> & Signals
+              </h1>
+              <p className="text-gray-500 text-sm mt-1">
+                Track and resolve campus issues together. React with "Affected" to escalate
+              </p>
+            </div>
+            
+            <Link
+              to="/report-issue"
+              className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
+              data-testid="report-new-issue-btn"
+            >
+              <Plus size={18} />
+              Report Issue
+            </Link>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Activity size={20} className="text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-sm text-gray-500">Total</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <AlertTriangle size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.reported}</p>
+                  <p className="text-sm text-gray-500">Reported</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Clock size={20} className="text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
+                  <p className="text-sm text-gray-500">In Progress</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <CheckCircle size={20} className="text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{stats.resolved}</p>
+                  <p className="text-sm text-gray-500">Resolved</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-4 gap-8">
-          {/* Filters & Stats Sidebar */}
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Filters Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded border border-gray-200 p-5 shadow-card sticky top-20 space-y-6">
-              {/* Stats */}
-              <div>
-                <h3 className="font-heading font-bold text-base mb-4 flex items-center gap-2 text-cit-navy">
-                  <TrendingUp size={18} className="text-cit-navy" />
-                  Overview
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded bg-cit-light">
-                    <span className="text-sm text-gray-600">Total Issues</span>
-                    <span className="text-lg font-bold text-cit-navy">{stats.total}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded bg-cit-gold/10">
-                    <span className="text-sm text-cit-navy">Reported</span>
-                    <span className="text-lg font-bold text-cit-navy">{stats.reported}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded bg-cit-navy/10">
-                    <span className="text-sm text-cit-navy">In Progress</span>
-                    <span className="text-lg font-bold text-cit-navy">{stats.inProgress}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded bg-green-50">
-                    <span className="text-sm text-green-700">Resolved</span>
-                    <span className="text-lg font-bold text-green-700">{stats.resolved}</span>
-                  </div>
-                </div>
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 sticky top-20">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter size={18} className="text-amber-500" />
+                <h3 className="font-bold text-gray-900">Filters</h3>
               </div>
 
-              {/* Filters */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Filter size={18} className="text-cit-navy" />
-                  <h3 className="font-heading font-bold text-base text-cit-navy">Filters</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-2">CATEGORY</label>
+                  <select
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                    className="w-full h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    data-testid="category-filter"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="hostel">🏠 Hostel & Mess</option>
+                    <option value="infrastructure">🏗️ Infrastructure</option>
+                    <option value="safety">🛡️ Safety</option>
+                    <option value="academic">📚 Academic & Exam</option>
+                    <option value="other">📋 Other</option>
+                  </select>
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-2">CATEGORY</label>
-                    <select
-                      value={filters.category}
-                      onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                      className="w-full h-10 px-4 rounded border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cit-gold"
-                      data-testid="category-filter"
-                    >
-                      <option value="">All Categories</option>
-                      <option value="hostel">Hostel & Mess</option>
-                      <option value="infrastructure">Infrastructure</option>
-                      <option value="safety">Safety</option>
-                      <option value="academic">Academic & Exam</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-2">STATUS</label>
-                    <select
-                      value={filters.status}
-                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                      className="w-full h-10 px-4 rounded border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cit-gold"
-                      data-testid="status-filter"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="reported">Reported</option>
-                      <option value="acknowledged">Acknowledged</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="resolved">Resolved</option>
-                    </select>
-                  </div>
-
-                  {(filters.category || filters.status) && (
-                    <button
-                      onClick={() => setFilters({ category: "", status: "" })}
-                      className="w-full h-10 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium text-sm transition-colors"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-2">STATUS</label>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    className="w-full h-10 px-4 rounded-lg border border-gray-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    data-testid="status-filter"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="reported">Reported</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
                 </div>
+
+                {(filters.category || filters.status) && (
+                  <button
+                    onClick={() => setFilters({ category: "", status: "" })}
+                    className="w-full h-10 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium text-sm transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
-
-              {/* Report Button */}
-              <Link
-                to="/report-issue"
-                className="w-full h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all shadow-button flex items-center justify-center gap-2"
-                data-testid="report-new-issue-btn"
-              >
-                <Plus size={20} />
-                Report Issue
-              </Link>
             </div>
           </div>
 
           {/* Issues List */}
           <div className="lg:col-span-3">
-            <div className="mb-6">
-              <h2 className="section-title">All Issues</h2>
-            </div>
-            
             <div className="space-y-4" data-testid="issues-list">
               {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cit-navy"></div>
-                </div>
-              ) : issues.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded border-2 border-dashed border-gray-300">
-                  <div className="w-16 h-16 rounded bg-green-100 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle size={32} className="text-green-600" />
+                [...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-200 p-5 animate-pulse">
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 h-16 rounded-xl bg-gray-200" />
+                      <div className="flex-1">
+                        <div className="h-5 bg-gray-200 rounded w-24 mb-3" />
+                        <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
+                        <div className="h-4 bg-gray-100 rounded w-1/2" />
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-[20px] font-heading font-semibold text-cit-navy mb-2">
-                    No issues found
-                  </h3>
-                  <p className="text-[15px] text-gray-500">
+                ))
+              ) : issues.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle size={28} className="text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">No issues found</h3>
+                  <p className="text-gray-500 text-sm">
                     {filters.category || filters.status
                       ? "Try adjusting your filters"
                       : "Great! No issues reported yet"}
@@ -220,14 +252,14 @@ function IssueList() {
                     <Link
                       key={issue.issue_id}
                       to={`/issues/${issue.issue_id}`}
-                      className="block bg-white rounded border border-gray-200 p-6 hover:shadow-card-hover transition-all group animate-slide-in"
+                      className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-amber-300 hover:shadow-sm transition-all group"
                       data-testid={`issue-card-${issue.issue_id}`}
                     >
                       <div className="flex items-start gap-4">
                         {/* Affected Count Badge */}
                         <div className="flex-shrink-0">
-                          <div className="w-16 h-16 rounded bg-cit-gold/20 flex flex-col items-center justify-center border border-cit-gold/30">
-                            <span className="text-2xl font-bold text-cit-navy">{issue.affected_count || 0}</span>
+                          <div className="w-16 h-16 rounded-xl bg-amber-50 flex flex-col items-center justify-center border border-amber-200">
+                            <span className="text-2xl font-bold text-amber-600">{issue.affected_count || 0}</span>
                             <span className="text-xs text-gray-500">affected</span>
                           </div>
                         </div>
@@ -236,37 +268,37 @@ function IssueList() {
                         <div className="flex-1 min-w-0">
                           {/* Status & Category */}
                           <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold ${statusStyle.bg} ${statusStyle.text}`}>
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold ${statusStyle.bg} ${statusStyle.text} border ${statusStyle.border}`}>
                               <StatusIcon size={14} />
                               {statusStyle.label}
                             </span>
-                            <span className="px-3 py-1 rounded bg-cit-light text-cit-navy text-xs font-medium">
+                            <span className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium">
                               {issue.category}
                             </span>
                             {issue.location && (
-                              <span className="px-3 py-1 rounded bg-cit-light text-cit-navy text-xs font-medium">
+                              <span className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-medium">
                                 📍 {issue.location}
                               </span>
                             )}
                           </div>
 
                           {/* Title */}
-                          <h3 className="text-lg font-heading font-semibold text-cit-navy mb-2 group-hover:text-cit-gold transition-colors">
+                          <h3 className="text-base font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">
                             {issue.title}
                           </h3>
 
                           {/* Description */}
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                          <p className="text-sm text-gray-500 mb-3 line-clamp-2">
                             {issue.description}
                           </p>
 
                           {/* Footer */}
-                          <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center justify-between text-xs text-gray-400">
                             <span>
                               Reported {formatDistanceToNow(new Date(issue.created_at), { addSuffix: true })}
                             </span>
                             {issue.updated_at !== issue.created_at && (
-                              <span className="text-cit-gold font-medium">
+                              <span className="text-amber-600 font-medium">
                                 Updated {formatDistanceToNow(new Date(issue.updated_at), { addSuffix: true })}
                               </span>
                             )}

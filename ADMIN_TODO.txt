@@ -1,0 +1,780 @@
+# ADMIN DASHBOARD — BACKEND COMPLETION TASKS
+
+> **Audit Date:** January 9, 2026  
+> **Database:** SQLite  
+> **Backend Framework:** FastAPI  
+> **Status Legend:** ✅ Fully Implemented | 🟡 Partially Implemented | ❌ Not Implemented
+
+---
+
+## EXECUTIVE SUMMARY
+
+The Admin Dashboard module is **primarily frontend-only** with **extensive mock data**. The frontend has been built with sophisticated UI for AI-powered issue aggregation and content moderation, but almost all admin-specific features lack corresponding backend APIs, database tables, and business logic.
+
+**Overall Backend Completion: ~10%**
+
+---
+
+## SESSION 1: Discovered Admin Dashboard Inventory
+
+### 1.1 Admin Routes & Pages
+
+| Page Name | Route Path | Navigation Label | Purpose |
+|-----------|------------|------------------|---------|
+| AdminDashboard | `/admin` | ADMIN | Main admin control panel with multiple tabs |
+
+### 1.2 Admin Dashboard Tabs (Internal Navigation)
+
+| Tab Name | Tab ID | Purpose | Backend Status |
+|----------|--------|---------|----------------|
+| Overview | `overview` | Platform statistics and AI insights summary | 🟡 Partial |
+| AI Issue Insights | `ai-insights` | AI-aggregated issue clusters with sentiment analysis | ❌ Mock only |
+| All Issues | `all-issues` | Individual issue management with status updates | 🟡 Partial |
+| AI Moderation | `moderation` | AI-flagged content review and moderation actions | ❌ Mock only |
+
+### 1.3 Admin Access Points
+
+| Component | Location | Access Control | Purpose |
+|-----------|----------|----------------|---------|
+| Navbar Admin Link | `Navbar.js` | `user?.role === 'admin'` | Desktop nav link to /admin |
+| Navbar Dropdown | `Navbar.js` | `user?.role === 'admin'` | Dropdown menu link to Admin Dashboard |
+| AdminDashboard Guard | `AdminDashboard.js` | `user?.role !== 'admin'` | Page-level access denial |
+| Login Role Selection | `Login.js` | Role dropdown + email detection | Admin role assignment |
+
+### 1.4 Admin Features Discovered
+
+| Feature | Location | Data Source | Backend Required |
+|---------|----------|-------------|------------------|
+| Platform Statistics | Overview tab | Mixed (API + hardcoded) | Yes |
+| AI Issue Aggregation | AI Insights tab | `mockAggregatedIssues` | Yes |
+| Issue Clustering | AI Insights tab | Mock data | Yes |
+| Sentiment Analysis | AI Insights tab | Mock data | Yes |
+| Issue Status Management | All Issues tab | Real API | Partial |
+| AI Content Moderation | Moderation tab | `mockFlaggedPosts` | Yes |
+| Risk Category Detection | Moderation tab | Mock data | Yes |
+| Moderation Actions | Moderation tab | Local state only | Yes |
+| Moderation Audit Log | Moderation tab | `mockModerationLog` | Yes |
+
+### 1.5 Admin Widgets & Panels
+
+| Widget | Tab | Data Source | Status |
+|--------|-----|-------------|--------|
+| Active Users Count | Overview | Hardcoded (150) | ❌ |
+| Total Issues Count | Overview | Real API | ✅ |
+| Pending Issues Count | Overview | Real API | ✅ |
+| Resolved Issues Count | Overview | Real API | ✅ |
+| Community Moments Count | Overview | Real API | ✅ |
+| Opportunities Count | Overview | Real API | ✅ |
+| AI Issue Clusters Count | Overview | Mock data length | ❌ |
+| Critical Issues Summary | Overview | Mock data | ❌ |
+| High Priority Summary | Overview | Mock data | ❌ |
+| Total Complaints | Overview | Mock data aggregation | ❌ |
+| Students Affected | Overview | Mock data aggregation | ❌ |
+| Pending Review Count | Moderation | Mock data filter | ❌ |
+| Critical Flags Count | Moderation | Mock data filter | ❌ |
+| Approved Posts Count | Moderation | Mock data filter | ❌ |
+| Removed Posts Count | Moderation | Mock data filter | ❌ |
+
+---
+
+## SESSION 2: Backend Features Already Implemented
+
+### 2.1 Authentication & Role System ✅
+| Feature | API Endpoint | Database Table | Status |
+|---------|-------------|----------------|--------|
+| User Authentication | `POST /api/auth/session` | `users`, `user_sessions` | ✅ Stable |
+| Dev Login with Role | `POST /api/auth/dev-login` | `users`, `user_sessions` | ✅ Stable |
+| Get Current User | `GET /api/auth/me` | `users` | ✅ Stable |
+| Role Field | - | `users.role` | ✅ Stable |
+
+### 2.2 Issue Management (Partial) 🟡
+| Feature | API Endpoint | Database Table | Status |
+|---------|-------------|----------------|--------|
+| List All Issues | `GET /api/issues` | `issues` | ✅ Stable |
+| Get Issue Detail | `GET /api/issues/{id}` | `issues` | ✅ Stable |
+| Update Issue Status | `PUT /api/issues/{id}/status` | `issues` | ✅ Stable |
+| Admin Role Check | Middleware in endpoint | - | ✅ Stable |
+
+**Code Reference (server.py:463-476):**
+```python
+@api_router.put("/issues/{issue_id}/status")
+async def update_issue_status_endpoint(issue_id: str, request: Request):
+    user = await get_user_from_token(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    # ... status update logic
+```
+
+### 2.3 Basic Statistics (Partial) 🟡
+| Feature | API Endpoint | Status |
+|---------|-------------|--------|
+| Issues Count | `GET /api/issues` (count result) | ✅ |
+| Moments Count | `GET /api/moments` (count result) | ✅ |
+| Opportunities Count | `GET /api/opportunities` (count result) | ✅ |
+| Users Count | Not implemented | ❌ |
+
+---
+
+## SESSION 3: Partially Implemented Backend Features
+
+### 3.1 Issue Status Management 🟡
+| What Exists | What is Missing | Dependencies |
+|-------------|-----------------|--------------|
+| `PUT /api/issues/{id}/status` endpoint | Bulk status update | None |
+| Admin role check | Status change notifications | Notifications system |
+| Timeline tracking | Assignment to staff | Staff management |
+| | Escalation workflow | Escalation rules |
+
+### 3.2 Platform Statistics 🟡
+| What Exists | What is Missing | Dependencies |
+|-------------|-----------------|--------------|
+| Count of issues, moments, opportunities | User count endpoint | None |
+| | Active users tracking | Activity logging |
+| | Time-based analytics | Analytics tables |
+| | Trend calculations | Historical data |
+
+### 3.3 Admin Authentication 🟡
+| What Exists | What is Missing | Dependencies |
+|-------------|-----------------|--------------|
+| Role field in users table | Admin-specific middleware | None |
+| Role check in issue status endpoint | Role-based route protection | None |
+| | Admin session management | None |
+| | Admin activity logging | Audit logs |
+
+---
+
+## SESSION 4: Missing Backend Features
+
+### 4.1 AI Issue Aggregation System ❌
+**Frontend Location:** `AdminDashboard.js` - AI Insights tab  
+**Current State:** 100% mock data (`mockAggregatedIssues`)
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `aggregated_issues` table | HIGH | High |
+| AI clustering service | HIGH | Very High |
+| `GET /api/admin/issues/aggregated` | HIGH | Medium |
+| `POST /api/admin/issues/run-analysis` | HIGH | High |
+| Sentiment analysis integration | MEDIUM | High |
+| Trend detection algorithm | MEDIUM | High |
+
+**Required Database Schema:**
+```sql
+CREATE TABLE aggregated_issues (
+    agg_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    ai_summary TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    related_count INTEGER DEFAULT 0,
+    total_comments INTEGER DEFAULT 0,
+    total_affected INTEGER DEFAULT 0,
+    sentiment REAL DEFAULT 0,
+    category TEXT NOT NULL,
+    locations TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'reported',
+    trend TEXT DEFAULT 'stable',
+    related_issue_ids TEXT DEFAULT '[]',
+    last_activity TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE issue_clusters (
+    cluster_id TEXT PRIMARY KEY,
+    agg_id TEXT NOT NULL,
+    issue_id TEXT NOT NULL,
+    similarity_score REAL,
+    clustered_at TEXT NOT NULL,
+    FOREIGN KEY (agg_id) REFERENCES aggregated_issues(agg_id),
+    FOREIGN KEY (issue_id) REFERENCES issues(issue_id)
+);
+```
+
+**Required API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/issues/aggregated` | GET | Get all AI-aggregated issue clusters |
+| `/api/admin/issues/aggregated/{id}` | GET | Get single cluster with related issues |
+| `/api/admin/issues/run-analysis` | POST | Trigger AI clustering analysis |
+| `/api/admin/issues/aggregated/{id}/status` | PUT | Update cluster status |
+
+---
+
+### 4.2 AI Content Moderation System ❌
+**Frontend Location:** `AdminDashboard.js` - Moderation tab  
+**Current State:** 100% mock data (`mockFlaggedPosts`)
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `flagged_content` table | CRITICAL | Medium |
+| AI content analysis service | CRITICAL | Very High |
+| `GET /api/admin/moderation/flagged` | CRITICAL | Low |
+| `POST /api/admin/moderation/{id}/approve` | CRITICAL | Low |
+| `POST /api/admin/moderation/{id}/remove` | CRITICAL | Low |
+| `POST /api/admin/moderation/{id}/review` | CRITICAL | Low |
+| Risk category classification | HIGH | High |
+| Confidence scoring | HIGH | High |
+
+**Required Database Schema:**
+```sql
+CREATE TABLE flagged_content (
+    flag_id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    post_type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_name TEXT NOT NULL,
+    author_role TEXT,
+    classroom TEXT,
+    department TEXT,
+    risk_category TEXT NOT NULL,
+    risk_severity TEXT NOT NULL,
+    confidence_score REAL NOT NULL,
+    ai_reasoning TEXT,
+    status TEXT DEFAULT 'pending',
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    flagged_at TEXT NOT NULL,
+    interactions_likes INTEGER DEFAULT 0,
+    interactions_comments INTEGER DEFAULT 0,
+    FOREIGN KEY (author_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE moderation_log (
+    log_id TEXT PRIMARY KEY,
+    flag_id TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    admin_id TEXT NOT NULL,
+    admin_name TEXT NOT NULL,
+    reason TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (flag_id) REFERENCES flagged_content(flag_id),
+    FOREIGN KEY (admin_id) REFERENCES users(user_id)
+);
+```
+
+**Required API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/moderation/flagged` | GET | Get all flagged content |
+| `/api/admin/moderation/flagged/{id}` | GET | Get single flagged item |
+| `/api/admin/moderation/{id}/approve` | POST | Approve flagged content |
+| `/api/admin/moderation/{id}/remove` | POST | Remove flagged content |
+| `/api/admin/moderation/{id}/review` | POST | Mark as reviewed |
+| `/api/admin/moderation/log` | GET | Get moderation action log |
+| `/api/admin/moderation/stats` | GET | Get moderation statistics |
+
+---
+
+### 4.3 User Management ❌
+**Frontend Location:** Not implemented in UI  
+**Current State:** No UI, no backend
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `GET /api/admin/users` | HIGH | Low |
+| `GET /api/admin/users/{id}` | HIGH | Low |
+| `PUT /api/admin/users/{id}/role` | HIGH | Low |
+| `PUT /api/admin/users/{id}/status` | MEDIUM | Low |
+| `GET /api/admin/users/stats` | MEDIUM | Medium |
+| User search and filtering | MEDIUM | Medium |
+
+**Required API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/users` | GET | List all users with filters |
+| `/api/admin/users/{id}` | GET | Get user details |
+| `/api/admin/users/{id}/role` | PUT | Change user role |
+| `/api/admin/users/{id}/status` | PUT | Activate/deactivate user |
+| `/api/admin/users/stats` | GET | User statistics |
+
+---
+
+### 4.4 Admin Analytics & Reports ❌
+**Frontend Location:** Overview tab (partial)  
+**Current State:** Hardcoded values
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `GET /api/admin/stats` | HIGH | Medium |
+| `GET /api/admin/analytics/trends` | MEDIUM | High |
+| `GET /api/admin/analytics/activity` | MEDIUM | Medium |
+| Time-series data | LOW | High |
+| Export functionality | LOW | Medium |
+
+**Required API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/stats` | GET | Platform-wide statistics |
+| `/api/admin/stats/users` | GET | User statistics |
+| `/api/admin/stats/content` | GET | Content statistics |
+| `/api/admin/analytics/trends` | GET | Trend data over time |
+| `/api/admin/analytics/export` | GET | Export data as CSV/JSON |
+
+---
+
+### 4.5 Audit Logging ❌
+**Frontend Location:** Moderation log (partial UI)  
+**Current State:** Local state only
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `audit_logs` table | HIGH | Medium |
+| `GET /api/admin/audit-logs` | HIGH | Low |
+| Automatic action logging | HIGH | Medium |
+| Log filtering and search | MEDIUM | Medium |
+
+**Required Database Schema:**
+```sql
+CREATE TABLE audit_logs (
+    log_id TEXT PRIMARY KEY,
+    admin_id TEXT NOT NULL,
+    admin_name TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (admin_id) REFERENCES users(user_id)
+);
+```
+
+---
+
+### 4.6 System Configuration ❌
+**Frontend Location:** Not implemented  
+**Current State:** No UI, no backend
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| `system_config` table | LOW | Low |
+| `GET /api/admin/config` | LOW | Low |
+| `PUT /api/admin/config` | LOW | Low |
+| Feature flags | LOW | Medium |
+
+---
+
+### 4.7 Admin Notifications ❌
+**Frontend Location:** Not implemented  
+**Current State:** No UI, no backend
+
+| Required Feature | Priority | Complexity |
+|-----------------|----------|------------|
+| Admin notification system | MEDIUM | Medium |
+| Critical alert triggers | MEDIUM | High |
+| `GET /api/admin/notifications` | MEDIUM | Low |
+
+---
+
+## SESSION 5: Frontend ↔ Backend Connection Map
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ADMIN DASHBOARD                                    │
+│                         Route: /admin                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                         OVERVIEW TAB                                    │ │
+│  │                         🟡 Partial                                      │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  Active Users: ❌ Hardcoded (150)                                      │ │
+│  │  Total Issues: ✅ GET /api/issues                                      │ │
+│  │  Pending Issues: ✅ Calculated from API                                │ │
+│  │  Resolved Issues: ✅ Calculated from API                               │ │
+│  │  Community Moments: ✅ GET /api/moments                                │ │
+│  │  Opportunities: ✅ GET /api/opportunities                              │ │
+│  │  AI Issue Clusters: ❌ Mock data length                                │ │
+│  │  AI Summary Panel: ❌ Mock data aggregation                            │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                      AI ISSUE INSIGHTS TAB                              │ │
+│  │                         ❌ Mock Only                                    │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  Aggregated Issues List: ❌ mockAggregatedIssues                       │ │
+│  │  Severity Filtering: ❌ Local state only                               │ │
+│  │  Category Filtering: ❌ Local state only                               │ │
+│  │  Status Filtering: ❌ Local state only                                 │ │
+│  │  Sorting: ❌ Local state only                                          │ │
+│  │  AI Summary Display: ❌ Mock data                                      │ │
+│  │  Sentiment Analysis: ❌ Mock data                                      │ │
+│  │  Trend Indicators: ❌ Mock data                                        │ │
+│  │  Related Issues Expansion: ❌ Mock data                                │ │
+│  │  Run Analysis Button: ❌ simulateAiProcessing() - fake                 │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                       ALL ISSUES TAB                                    │ │
+│  │                         🟡 Partial                                      │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  Issues List: ✅ GET /api/issues                                       │ │
+│  │  Issue Details Link: ✅ Links to /issues/{id}                          │ │
+│  │  Acknowledge Button: ✅ PUT /api/issues/{id}/status                    │ │
+│  │  Start Work Button: ✅ PUT /api/issues/{id}/status                     │ │
+│  │  Resolve Button: ✅ PUT /api/issues/{id}/status                        │ │
+│  │  Bulk Actions: ❌ Not implemented                                      │ │
+│  │  Advanced Filtering: ❌ Not implemented                                │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                      AI MODERATION TAB                                  │ │
+│  │                         ❌ Mock Only                                    │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  Moderation Stats: ❌ Mock data counts                                 │ │
+│  │  Flagged Posts List: ❌ mockFlaggedPosts                               │ │
+│  │  Risk Category Filter: ❌ Local state only                             │ │
+│  │  Severity Filter: ❌ Local state only                                  │ │
+│  │  Status Filter: ❌ Local state only                                    │ │
+│  │  Approve Action: ❌ Local state only (handleApprovePost)               │ │
+│  │  Remove Action: ❌ Local state only (handleRemovePost)                 │ │
+│  │  Mark Reviewed: ❌ Local state only (handleMarkReviewed)               │ │
+│  │  AI Reasoning Display: ❌ Mock data                                    │ │
+│  │  Confidence Scores: ❌ Mock data                                       │ │
+│  │  Moderation Log: ❌ mockModerationLog (local state)                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+LEGEND:
+✅ Connected to Backend    🟡 Partially Connected    ❌ Mock Data Only
+```
+
+### Page-by-Page Backend Requirements
+
+| Page/Tab | Required Backend Services | Required APIs | Required DB Entities | Current Status |
+|----------|--------------------------|---------------|---------------------|----------------|
+| Overview | Stats Service | `/api/admin/stats` | `users` (count) | 🟡 Partial |
+| AI Insights | AI Clustering Service | `/api/admin/issues/aggregated`, `/api/admin/issues/run-analysis` | `aggregated_issues`, `issue_clusters` | ❌ None |
+| All Issues | Issue Service | `/api/issues`, `/api/issues/{id}/status` | `issues` | 🟡 Partial |
+| Moderation | AI Moderation Service | `/api/admin/moderation/*` | `flagged_content`, `moderation_log` | ❌ None |
+
+---
+
+## SESSION 6: Backend Execution Task List
+
+### Priority 1: CRITICAL (Security & Core Functionality)
+
+| # | Task | Estimated Effort | Dependencies |
+|---|------|-----------------|--------------|
+| 1 | Create admin middleware for route protection | 2 hours | None |
+| 2 | Create `flagged_content` table | 30 min | None |
+| 3 | Create `moderation_log` table | 30 min | Task 2 |
+| 4 | Implement `GET /api/admin/moderation/flagged` | 1 hour | Task 2 |
+| 5 | Implement `POST /api/admin/moderation/{id}/approve` | 1 hour | Tasks 2, 3 |
+| 6 | Implement `POST /api/admin/moderation/{id}/remove` | 1 hour | Tasks 2, 3 |
+| 7 | Implement `POST /api/admin/moderation/{id}/review` | 30 min | Tasks 2, 3 |
+| 8 | Implement `GET /api/admin/moderation/log` | 1 hour | Task 3 |
+| 9 | Create `audit_logs` table | 30 min | None |
+| 10 | Implement audit logging middleware | 2 hours | Task 9 |
+
+### Priority 2: HIGH (AI Features)
+
+| # | Task | Estimated Effort | Dependencies |
+|---|------|-----------------|--------------|
+| 11 | Create `aggregated_issues` table | 30 min | None |
+| 12 | Create `issue_clusters` table | 30 min | Task 11 |
+| 13 | Implement `GET /api/admin/issues/aggregated` | 1.5 hours | Tasks 11, 12 |
+| 14 | Implement basic issue clustering algorithm | 4 hours | Tasks 11, 12 |
+| 15 | Implement `POST /api/admin/issues/run-analysis` | 2 hours | Task 14 |
+| 16 | Implement sentiment analysis integration | 3 hours | Task 11 |
+| 17 | Implement AI content flagging service | 4 hours | Task 2 |
+| 18 | Implement risk category classification | 3 hours | Task 17 |
+
+### Priority 3: MEDIUM (User Management & Analytics)
+
+| # | Task | Estimated Effort | Dependencies |
+|---|------|-----------------|--------------|
+| 19 | Implement `GET /api/admin/users` | 1 hour | None |
+| 20 | Implement `GET /api/admin/users/{id}` | 30 min | None |
+| 21 | Implement `PUT /api/admin/users/{id}/role` | 1 hour | Task 9 |
+| 22 | Implement `PUT /api/admin/users/{id}/status` | 1 hour | Task 9 |
+| 23 | Implement `GET /api/admin/stats` | 2 hours | None |
+| 24 | Implement `GET /api/admin/stats/users` | 1 hour | None |
+| 25 | Implement `GET /api/admin/analytics/trends` | 3 hours | None |
+
+### Priority 4: LOW (Nice to Have)
+
+| # | Task | Estimated Effort | Dependencies |
+|---|------|-----------------|--------------|
+| 26 | Create `system_config` table | 30 min | None |
+| 27 | Implement system configuration endpoints | 1 hour | Task 26 |
+| 28 | Implement admin notifications | 2 hours | None |
+| 29 | Implement data export functionality | 2 hours | None |
+| 30 | Implement bulk issue operations | 2 hours | None |
+
+### Frontend Connection Tasks
+
+| # | Task | Estimated Effort | Dependencies |
+|---|------|-----------------|--------------|
+| F1 | Connect Overview tab to `/api/admin/stats` | 1 hour | Task 23 |
+| F2 | Connect AI Insights tab to aggregation APIs | 2 hours | Tasks 13, 15 |
+| F3 | Connect Moderation tab to moderation APIs | 2 hours | Tasks 4-8 |
+| F4 | Replace all mock data with API calls | 3 hours | All API tasks |
+| F5 | Add loading states and error handling | 2 hours | F1-F4 |
+
+---
+
+## SESSION 7: Final Backend Readiness Status
+
+### Overall Completion: ~10%
+
+```
+Authentication & Role:       ████████████████░░░░░░░░  70%
+Issue Status Management:     ████████████████░░░░░░░░  70%
+Platform Statistics:         ████████░░░░░░░░░░░░░░░░  35%
+AI Issue Aggregation:        ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+AI Content Moderation:       ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+User Management:             ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+Audit Logging:               ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+Admin Analytics:             ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+System Configuration:        ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+Admin Notifications:         ░░░░░░░░░░░░░░░░░░░░░░░░   0%
+```
+
+### What Works Today
+- ✅ Admin can log in with `role: 'admin'`
+- ✅ Frontend access control checks `user.role === 'admin'`
+- ✅ Admin can view all issues from database
+- ✅ Admin can update issue status (acknowledge, start work, resolve)
+- ✅ Issue status endpoint has admin role check
+- ✅ Basic counts for issues, moments, opportunities
+
+### Critical Blockers
+
+1. **No AI Services**
+   - AI issue aggregation is 100% mock data
+   - AI content moderation is 100% mock data
+   - No clustering, sentiment analysis, or risk detection
+
+2. **No Moderation Backend**
+   - Approve/Remove/Review actions only update local state
+   - No persistence of moderation decisions
+   - No audit trail for moderation actions
+
+3. **No Admin Middleware**
+   - Only one endpoint (`PUT /api/issues/{id}/status`) checks admin role
+   - No centralized admin route protection
+   - Other admin endpoints don't exist
+
+4. **No Audit Logging**
+   - Admin actions are not logged
+   - No accountability trail
+   - Security compliance gap
+
+### Missing Dependencies
+
+1. **AI/ML Infrastructure**
+   - Text clustering algorithm (for issue aggregation)
+   - Sentiment analysis model
+   - Content classification model (for risk categories)
+   - Confidence scoring system
+
+2. **Database Tables**
+   - `aggregated_issues`
+   - `issue_clusters`
+   - `flagged_content`
+   - `moderation_log`
+   - `audit_logs`
+   - `system_config`
+
+3. **Services**
+   - AI Clustering Service
+   - AI Content Analysis Service
+   - Audit Logging Service
+   - Admin Statistics Service
+
+### Security Gaps
+
+| Gap | Severity | Impact |
+|-----|----------|--------|
+| No admin middleware | HIGH | Any authenticated user could potentially access admin APIs if they existed |
+| No audit logging | HIGH | No accountability for admin actions |
+| No rate limiting on admin endpoints | MEDIUM | Potential for abuse |
+| No IP restriction for admin access | LOW | Admin accessible from any location |
+| Moderation actions not persisted | HIGH | Decisions lost on page refresh |
+| No two-factor auth for admin | MEDIUM | Single point of authentication failure |
+
+### Recommended Implementation Order
+
+1. **Phase 1 (Security Foundation):** 
+   - Create admin middleware
+   - Implement audit logging
+   - Add admin route protection
+
+2. **Phase 2 (Moderation Core):**
+   - Create moderation tables
+   - Implement moderation CRUD APIs
+   - Connect frontend to moderation APIs
+
+3. **Phase 3 (AI Features):**
+   - Implement basic issue clustering
+   - Add sentiment analysis
+   - Implement content flagging
+
+4. **Phase 4 (User Management):**
+   - Implement user listing and management APIs
+   - Add role management
+   - Add user status management
+
+5. **Phase 5 (Analytics):**
+   - Implement statistics endpoints
+   - Add trend analysis
+   - Implement data export
+
+### Estimated Total Effort
+
+| Category | Hours |
+|----------|-------|
+| Security & Middleware | 6-8 |
+| Moderation Backend | 8-10 |
+| AI Services (Basic) | 15-20 |
+| User Management | 5-6 |
+| Analytics | 6-8 |
+| Frontend Integration | 10-12 |
+| Testing & QA | 8-10 |
+| **Total** | **58-74 hours** |
+
+---
+
+## Complete Database Schema Additions Required
+
+```sql
+-- ============ AI ISSUE AGGREGATION ============
+
+CREATE TABLE aggregated_issues (
+    agg_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    ai_summary TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('critical', 'high', 'medium', 'low')),
+    related_count INTEGER DEFAULT 0,
+    total_comments INTEGER DEFAULT 0,
+    total_affected INTEGER DEFAULT 0,
+    sentiment REAL DEFAULT 0,
+    category TEXT NOT NULL,
+    locations TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'reported',
+    trend TEXT DEFAULT 'stable' CHECK (trend IN ('increasing', 'stable', 'decreasing')),
+    related_issue_ids TEXT DEFAULT '[]',
+    last_activity TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE issue_clusters (
+    cluster_id TEXT PRIMARY KEY,
+    agg_id TEXT NOT NULL,
+    issue_id TEXT NOT NULL,
+    similarity_score REAL,
+    clustered_at TEXT NOT NULL,
+    FOREIGN KEY (agg_id) REFERENCES aggregated_issues(agg_id),
+    FOREIGN KEY (issue_id) REFERENCES issues(issue_id),
+    UNIQUE(agg_id, issue_id)
+);
+
+-- ============ CONTENT MODERATION ============
+
+CREATE TABLE flagged_content (
+    flag_id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    post_type TEXT NOT NULL CHECK (post_type IN ('moment', 'comment', 'announcement', 'issue')),
+    content TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_name TEXT NOT NULL,
+    author_role TEXT,
+    classroom TEXT,
+    department TEXT,
+    risk_category TEXT NOT NULL CHECK (risk_category IN ('harassment', 'hate_speech', 'self_harm', 'bullying', 'misinformation', 'policy_violation', 'spam', 'other')),
+    risk_severity TEXT NOT NULL CHECK (risk_severity IN ('critical', 'high', 'medium', 'low')),
+    confidence_score REAL NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 1),
+    ai_reasoning TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'removed', 'reviewed')),
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    flagged_at TEXT NOT NULL,
+    interactions_likes INTEGER DEFAULT 0,
+    interactions_comments INTEGER DEFAULT 0,
+    FOREIGN KEY (author_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE moderation_log (
+    log_id TEXT PRIMARY KEY,
+    flag_id TEXT NOT NULL,
+    post_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('approved', 'removed', 'reviewed', 'escalated')),
+    admin_id TEXT NOT NULL,
+    admin_name TEXT NOT NULL,
+    reason TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (flag_id) REFERENCES flagged_content(flag_id),
+    FOREIGN KEY (admin_id) REFERENCES users(user_id)
+);
+
+-- ============ AUDIT LOGGING ============
+
+CREATE TABLE audit_logs (
+    log_id TEXT PRIMARY KEY,
+    admin_id TEXT NOT NULL,
+    admin_name TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (admin_id) REFERENCES users(user_id)
+);
+
+-- ============ SYSTEM CONFIGURATION ============
+
+CREATE TABLE system_config (
+    config_key TEXT PRIMARY KEY,
+    config_value TEXT NOT NULL,
+    config_type TEXT DEFAULT 'string',
+    description TEXT,
+    updated_by TEXT,
+    updated_at TEXT NOT NULL
+);
+
+-- ============ INDEXES ============
+
+CREATE INDEX idx_aggregated_issues_severity ON aggregated_issues(severity);
+CREATE INDEX idx_aggregated_issues_status ON aggregated_issues(status);
+CREATE INDEX idx_aggregated_issues_category ON aggregated_issues(category);
+CREATE INDEX idx_issue_clusters_agg ON issue_clusters(agg_id);
+CREATE INDEX idx_issue_clusters_issue ON issue_clusters(issue_id);
+CREATE INDEX idx_flagged_content_status ON flagged_content(status);
+CREATE INDEX idx_flagged_content_severity ON flagged_content(risk_severity);
+CREATE INDEX idx_flagged_content_category ON flagged_content(risk_category);
+CREATE INDEX idx_moderation_log_flag ON moderation_log(flag_id);
+CREATE INDEX idx_moderation_log_admin ON moderation_log(admin_id);
+CREATE INDEX idx_audit_logs_admin ON audit_logs(admin_id);
+CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
+```
+
+---
+
+## Risk Categories Reference
+
+| Category | Description | Severity Default |
+|----------|-------------|------------------|
+| `harassment` | Personal attacks, threats, intimidation | HIGH |
+| `hate_speech` | Discrimination based on identity | CRITICAL |
+| `self_harm` | Content indicating self-harm risk | CRITICAL |
+| `bullying` | Targeted harassment, exclusion | HIGH |
+| `misinformation` | False or misleading information | MEDIUM |
+| `policy_violation` | Violation of platform rules | MEDIUM |
+| `spam` | Unsolicited promotional content | LOW |
+| `other` | Uncategorized flagged content | MEDIUM |
+
+---
+
+*This audit document is for planning purposes only. No code changes have been made.*
+*Document prepared for handover to senior backend engineers and security reviewers.*

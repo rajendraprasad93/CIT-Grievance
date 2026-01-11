@@ -1,39 +1,28 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
-import MomentCard from "../components/MomentCard";
-import TrendingSection from "../components/TrendingSection";
 import PostMomentModal from "../components/PostMomentModal";
+import { 
+  Sparkles, RefreshCw, Plus, TrendingUp, Users, Zap, 
+  MessageCircle, Heart, Bookmark, Share2, MoreHorizontal,
+  Flame, Calendar, Activity, Radio, Eye, Coffee, ArrowRight
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 
 function CommunityFeed() {
   const { user } = useOutletContext();
   const [moments, setMoments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("all");
-  const [filters, setFilters] = useState({
-    hostel: "",
-    department: "",
-    year: "",
-  });
   const [showPostModal, setShowPostModal] = useState(false);
 
   const fetchMoments = useCallback(async () => {
     try {
       let endpoint = "/api/moments";
-      const params = new URLSearchParams();
-      
       if (selectedTab !== "all") {
-        params.append("moment_type", selectedTab);
+        endpoint += `?moment_type=${selectedTab}`;
       }
-      if (filters.hostel) params.append("hostel", filters.hostel);
-      if (filters.department) params.append("department", filters.department);
-      if (filters.year) params.append("year", filters.year);
-      
-      if (params.toString()) {
-        endpoint += `?${params.toString()}`;
-      }
-
       const data = await apiGet(endpoint);
       setMoments(data);
     } catch (error) {
@@ -41,7 +30,7 @@ function CommunityFeed() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTab, filters]);
+  }, [selectedTab]);
 
   useEffect(() => {
     fetchMoments();
@@ -57,19 +46,14 @@ function CommunityFeed() {
         formData.append('tags', momentData.tags.join(','));
         formData.append('image', momentData.image);
         
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/moments/with-image`, {
+        await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/moments/with-image`, {
           method: 'POST',
           body: formData,
           credentials: 'include'
         });
-        
-        if (!response.ok) {
-          throw new Error('Failed to post moment with image');
-        }
       } else {
         await apiPost("/api/moments", momentData);
       }
-      
       setShowPostModal(false);
       fetchMoments();
     } catch (error) {
@@ -77,193 +61,317 @@ function CommunityFeed() {
     }
   };
 
+  const firstName = user?.name?.split(' ')[0] || 'Student';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  const liveStats = { online: 47, trending: 12, newPosts: 8 };
+
+  const quickActions = [
+    { icon: '📚', label: 'Study Help', desc: 'Ask questions' },
+    { icon: '🎉', label: 'Campus Life', desc: 'Share moments' },
+    { icon: '💼', label: 'Opportunities', desc: 'Jobs & internships' },
+    { icon: '⚠️', label: 'Report Issue', desc: 'Campus problems' },
+  ];
+
+  const trendingTopics = [
+    { tag: 'DBMS Exam', count: 234, hot: true },
+    { tag: 'Hackathon 2026', count: 189 },
+    { tag: 'Hostel WiFi', count: 156, hot: true },
+    { tag: 'Placement Prep', count: 142 },
+  ];
+
   return (
-    <div className="min-h-screen bg-white pb-20 md:pb-0">
-      {/* Hero Section */}
-      <div className="bg-cit-navy text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-[28px] md:text-[32px] font-heading font-bold text-white mb-2">
-            Campus Community
-          </h1>
-          <p className="text-white/80 text-[15px]">
-            Connect, share, and stay updated with what's happening at CIT Chennai
-          </p>
+    <div className="min-h-screen bg-[#FAFAFA] pb-24 md:pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">{greeting} 👋</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                Welcome back, <span className="text-amber-600">{firstName}</span>
+              </h1>
+            </div>
+            
+            {/* Live Badge */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-sm font-semibold text-emerald-700">{liveStats.online} online</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Users size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{liveStats.online}</p>
+                  <p className="text-sm text-gray-500">Online Now</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-orange-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Flame size={20} className="text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{liveStats.trending}</p>
+                  <p className="text-sm text-gray-500">Trending</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Zap size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{liveStats.newPosts}</p>
+                  <p className="text-sm text-gray-500">New Today</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-12 gap-6">
           {/* Main Feed */}
-          <div className="lg:col-span-2">
-            {/* Campus Banner Image */}
-            <div className="mb-6 h-48 md:h-56 overflow-hidden rounded-lg shadow-md">
-              <img 
-                src="/campus-banner.jpg" 
-                alt="CIT Tug of War 2026" 
-                className="w-full h-full object-cover object-top"
-              />
-            </div>
-
-            {/* Section Title */}
-            <div className="mb-6">
-              <h2 className="section-title">Campus Moments</h2>
-            </div>
-
-            {/* Category Tabs - CIT Style */}
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide" data-testid="moment-tabs">
-              <button
-                onClick={() => setSelectedTab("all")}
-                className={`px-5 py-2.5 rounded font-semibold transition-all whitespace-nowrap text-sm ${
-                  selectedTab === "all"
-                    ? "bg-cit-navy text-white shadow-button"
-                    : "bg-white text-cit-navy hover:bg-cit-light border border-gray-200"
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setSelectedTab("help")}
-                className={`px-5 py-2.5 rounded font-semibold transition-all whitespace-nowrap text-sm flex items-center gap-1.5 ${
-                  selectedTab === "help"
-                    ? "bg-cit-navy text-white shadow-button"
-                    : "bg-white text-cit-navy hover:bg-cit-light border border-gray-200"
-                }`}
-              >
-                <span>📚</span> Help & Study
-              </button>
-              <button
-                onClick={() => setSelectedTab("campus_life")}
-                className={`px-5 py-2.5 rounded font-semibold transition-all whitespace-nowrap text-sm flex items-center gap-1.5 ${
-                  selectedTab === "campus_life"
-                    ? "bg-cit-gold text-cit-navy shadow-button"
-                    : "bg-white text-cit-navy hover:bg-cit-light border border-gray-200"
-                }`}
-              >
-                <span>🎓</span> Campus Life
-              </button>
-              <button
-                onClick={() => setSelectedTab("opportunity")}
-                className={`px-5 py-2.5 rounded font-semibold transition-all whitespace-nowrap text-sm flex items-center gap-1.5 ${
-                  selectedTab === "opportunity"
-                    ? "bg-cit-navy text-white shadow-button"
-                    : "bg-white text-cit-navy hover:bg-cit-light border border-gray-200"
-                }`}
-              >
-                <span>💼</span> Opportunities
-              </button>
-              <button
-                onClick={() => setSelectedTab("issue_observation")}
-                className={`px-5 py-2.5 rounded font-semibold transition-all whitespace-nowrap text-sm flex items-center gap-1.5 ${
-                  selectedTab === "issue_observation"
-                    ? "bg-cit-gold text-cit-navy shadow-button"
-                    : "bg-white text-cit-navy hover:bg-cit-light border border-gray-200"
-                }`}
-              >
-                <span>⚠️</span> Issues
-              </button>
-            </div>
-
-            {/* Context Filters */}
-            <div className="bg-cit-light rounded border border-gray-200 p-4 mb-6">
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={filters.hostel}
-                  onChange={(e) => setFilters({ ...filters, hostel: e.target.value })}
-                  className="h-10 px-4 rounded border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold transition-all"
-                >
-                  <option value="">🏠 All Hostels</option>
-                  <option value="A-Block">A-Block</option>
-                  <option value="B-Block">B-Block</option>
-                  <option value="C-Block">C-Block</option>
-                  <option value="D-Block">D-Block</option>
-                </select>
-
-                <select
-                  value={filters.department}
-                  onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                  className="h-10 px-4 rounded border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold transition-all"
-                >
-                  <option value="">📚 All Departments</option>
-                  <option value="CSE">Computer Science</option>
-                  <option value="ECE">Electronics</option>
-                  <option value="Mechanical">Mechanical</option>
-                  <option value="Civil">Civil</option>
-                  <option value="IT">Information Technology</option>
-                </select>
-
-                <select
-                  value={filters.year}
-                  onChange={(e) => setFilters({ ...filters, year: e.target.value })}
-                  className="h-10 px-4 rounded border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold transition-all"
-                >
-                  <option value="">🎓 All Years</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </select>
-
-                {(filters.hostel || filters.department || filters.year) && (
-                  <button
-                    onClick={() => setFilters({ hostel: "", department: "", year: "" })}
-                    className="h-10 px-4 rounded bg-red-50 text-red-600 hover:bg-red-100 font-medium text-sm transition-colors"
-                  >
-                    ✕ Clear All
-                  </button>
+          <div className="col-span-12 lg:col-span-8 space-y-5">
+            
+            {/* Create Post */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-4">
+              <div className="flex items-center gap-3 mb-4">
+                {user?.picture ? (
+                  <img src={user.picture} alt="" className="w-11 h-11 rounded-full object-cover" />
+                ) : (
+                  <div className="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold">
+                    {firstName.charAt(0)}
+                  </div>
                 )}
+                <button
+                  onClick={() => setShowPostModal(true)}
+                  className="flex-1 text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-500 transition-colors text-sm"
+                >
+                  What's happening on campus, {firstName}?
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-1">
+                  {quickActions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setShowPostModal(true)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-600 text-sm"
+                    >
+                      <span>{action.icon}</span>
+                      <span className="hidden sm:inline font-medium">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowPostModal(true)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors text-sm"
+                >
+                  Post
+                </button>
               </div>
             </div>
 
-            {/* Moments List */}
-            <div className="space-y-4" data-testid="moments-list">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {[
+                { id: 'all', label: 'All', icon: '🔥' },
+                { id: 'help', label: 'Study', icon: '📚' },
+                { id: 'campus_life', label: 'Life', icon: '🎉' },
+                { id: 'opportunity', label: 'Jobs', icon: '💼' },
+                { id: 'issue_observation', label: 'Issues', icon: '⚠️' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    selectedTab === tab.id
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => fetchMoments()}
+                className="ml-auto p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-all"
+              >
+                <RefreshCw size={16} className="text-gray-500" />
+              </button>
+            </div>
+
+            {/* Feed */}
+            <div className="space-y-4">
               {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cit-navy"></div>
-                </div>
-              ) : moments.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded border-2 border-dashed border-gray-300">
-                  <div className="w-16 h-16 rounded bg-cit-gold/20 flex items-center justify-center mx-auto mb-4">
-                    <Plus size={32} className="text-cit-navy" />
+                [...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-200 p-5 animate-pulse">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-11 h-11 rounded-full bg-gray-200" />
+                      <div className="flex-1">
+                        <div className="h-4 bg-gray-200 rounded w-32 mb-2" />
+                        <div className="h-3 bg-gray-100 rounded w-24" />
+                      </div>
+                    </div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                    <div className="h-4 bg-gray-100 rounded w-1/2" />
                   </div>
-                  <h3 className="text-[20px] font-heading font-semibold text-cit-navy mb-2">No moments yet</h3>
-                  <p className="text-[15px] text-gray-500 mb-6">
-                    Be the first to share something with your campus community!
-                  </p>
+                ))
+              ) : moments.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                    <Coffee size={28} className="text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">No posts yet</h3>
+                  <p className="text-gray-500 mb-6 text-sm">Be the first to share something! 🎉</p>
                   <button
                     onClick={() => setShowPostModal(true)}
-                    className="inline-flex items-center gap-2 h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all shadow-button"
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
                   >
-                    <Plus size={20} />
-                    Post Your First Moment
+                    Create Post
                   </button>
                 </div>
               ) : (
                 moments.map((moment) => (
-                  <MomentCard key={moment.moment_id} moment={moment} />
+                  <FeedCard key={moment.moment_id} moment={moment} />
                 ))
               )}
             </div>
           </div>
 
-          {/* Sidebar - Trending Section */}
-          <div className="hidden lg:block">
-            <div className="sticky top-20">
-              <TrendingSection userContext={user} />
+          {/* Sidebar */}
+          <div className="col-span-12 lg:col-span-4 space-y-5">
+            
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Zap size={18} className="text-amber-500" />
+                Quick Actions
+              </h3>
+              <div className="space-y-2">
+                {quickActions.map((action, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setShowPostModal(true)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-all text-left group"
+                  >
+                    <span className="text-2xl">{action.icon}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm group-hover:text-amber-600 transition-colors">{action.label}</p>
+                      <p className="text-xs text-gray-500">{action.desc}</p>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-amber-500 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Trending */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <TrendingUp size={18} className="text-orange-500" />
+                Trending Now
+              </h3>
+              <div className="space-y-1">
+                {trendingTopics.map((topic, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-400 text-sm font-mono w-5">#{idx + 1}</span>
+                      <span className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-sm">
+                        {topic.tag}
+                      </span>
+                      {topic.hot && (
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">
+                          Hot
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-gray-400 text-xs">{topic.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Classmates Online */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Activity size={18} className="text-emerald-500" />
+                Classmates Online
+              </h3>
+              <div className="flex -space-x-2 mb-3">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                  >
+                    {String.fromCharCode(65 + i)}
+                  </div>
+                ))}
+                <div className="w-9 h-9 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-500 text-xs font-medium">
+                  +41
+                </div>
+              </div>
+              <p className="text-sm text-gray-500">
+                <span className="text-emerald-600 font-semibold">47 students</span> from {user?.department || 'CSE'} are online
+              </p>
+            </div>
+
+            {/* Events */}
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white">
+              <h3 className="font-bold mb-4 flex items-center gap-2">
+                <Calendar size={18} className="text-amber-400" />
+                Upcoming Events
+              </h3>
+              <div className="space-y-3">
+                <div className="bg-white/10 rounded-xl p-3">
+                  <p className="font-semibold text-sm">🎯 Hackathon 2026</p>
+                  <p className="text-white/70 text-xs mt-1">Tomorrow, 9:00 AM</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-3">
+                  <p className="font-semibold text-sm">📚 DBMS Workshop</p>
+                  <p className="text-white/70 text-xs mt-1">Friday, 2:00 PM</p>
+                </div>
+              </div>
+              <button className="w-full mt-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-sm font-semibold transition-colors text-gray-900">
+                View All Events
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Floating Action Button - CIT Style */}
+      {/* Floating Action Button */}
       <button
         onClick={() => setShowPostModal(true)}
-        className="fixed bottom-24 md:bottom-8 right-8 w-14 h-14 rounded bg-cit-navy text-white shadow-card-hover hover:bg-[#003875] transition-all flex items-center justify-center z-40"
-        aria-label="Post Moment"
+        className="fixed bottom-24 md:bottom-8 right-6 w-14 h-14 bg-amber-500 hover:bg-amber-600 rounded-full flex items-center justify-center shadow-lg shadow-amber-200 hover:shadow-xl hover:scale-105 transition-all z-50 group"
       >
-        <Plus size={24} strokeWidth={2.5} />
+        <Plus size={24} className="text-white group-hover:rotate-90 transition-transform" />
       </button>
 
-      {/* Post Moment Modal */}
       <PostMomentModal
         isOpen={showPostModal}
         onClose={() => setShowPostModal(false)}
@@ -271,6 +379,124 @@ function CommunityFeed() {
         user={user}
       />
     </div>
+  );
+}
+
+// Feed Card Component
+function FeedCard({ moment }) {
+  const getCategoryConfig = (type) => {
+    const configs = {
+      help: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: '📚', label: 'Study' },
+      campus_life: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: '🎉', label: 'Life' },
+      opportunity: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: '💼', label: 'Job' },
+      issue_observation: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: '⚠️', label: 'Issue' },
+    };
+    return configs[type] || configs.help;
+  };
+
+  const config = getCategoryConfig(moment.moment_type);
+
+  return (
+    <Link to={`/community/${moment.moment_id}`}>
+      <article className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-amber-300 hover:shadow-sm transition-all group">
+        <div className="p-5">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                {moment.user_picture ? (
+                  <img
+                    src={moment.user_picture}
+                    alt={moment.user_name}
+                    className="w-11 h-11 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold">
+                    {moment.user_name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
+              </div>
+              
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                    {moment.user_name}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text} border ${config.border}`}>
+                    {config.icon} {config.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-500 text-sm">
+                  <span>{moment.user_department}</span>
+                  <span>•</span>
+                  <span>{formatDistanceToNow(new Date(moment.created_at), { addSuffix: true })}</span>
+                </div>
+              </div>
+            </div>
+            
+            <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+              <MoreHorizontal size={18} className="text-gray-400" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="mb-4">
+            {moment.title && (
+              <h3 className="text-base font-semibold text-gray-900 mb-1.5 group-hover:text-amber-600 transition-colors">
+                {moment.title}
+              </h3>
+            )}
+            <p className="text-gray-600 text-sm line-clamp-3">{moment.content}</p>
+          </div>
+
+          {/* Image */}
+          {moment.image_url && (
+            <div className="mb-4 -mx-5">
+              <img src={moment.image_url} alt="" className="w-full object-cover max-h-72" />
+            </div>
+          )}
+
+          {/* Tags */}
+          {moment.tags && moment.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {moment.tags.slice(0, 4).map((tag, idx) => (
+                <span key={idx} className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium hover:bg-amber-100 hover:text-amber-700 transition-colors">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-4">
+              <button className="flex items-center gap-1.5 text-gray-500 hover:text-rose-500 transition-colors">
+                <Heart size={18} />
+                <span className="text-sm font-medium">{moment.reactions || 0}</span>
+              </button>
+              <button className="flex items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors">
+                <MessageCircle size={18} />
+                <span className="text-sm font-medium">{moment.comments_count || 0}</span>
+              </button>
+              <button className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 transition-colors">
+                <Eye size={18} />
+                <span className="text-sm font-medium">{moment.views || 0}</span>
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button className="p-2 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all">
+                <Bookmark size={18} />
+              </button>
+              <button className="p-2 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all">
+                <Share2 size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </Link>
   );
 }
 

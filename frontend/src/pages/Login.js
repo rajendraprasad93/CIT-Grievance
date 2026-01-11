@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, GraduationCap, Mail, User, Building } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -10,162 +10,234 @@ function Login() {
     email: "",
     name: "",
     department: "CSE",
+    year: "2",
     role: "student",
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleDevLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    
     if (!formData.email || !formData.name) {
-      alert("Please fill in all fields");
+      setError("Please fill in all required fields");
       return;
     }
     
-    const isAdmin = formData.role === "admin" || 
-                    formData.email.toLowerCase().includes('admin') || 
-                    formData.email.toLowerCase().endsWith('@admin.edu');
-    
-    const isTeacher = formData.role === "teacher" || 
-                      formData.email.toLowerCase().includes('teacher') || 
-                      formData.email.toLowerCase().endsWith('@faculty.edu');
+    const isAdmin = formData.role === "admin" || formData.email.toLowerCase().includes('admin');
+    const isTeacher = formData.role === "teacher" || formData.email.toLowerCase().includes('teacher');
     
     let userRole = "student";
     if (isAdmin) userRole = "admin";
     else if (isTeacher) userRole = "teacher";
-    
-    const devUser = {
-      user_id: `dev_${Date.now()}`,
-      email: formData.email,
-      name: formData.name,
-      picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}`,
-      role: userRole,
-      department: formData.department,
-      year: 2,
-      created_at: new Date().toISOString(),
-    };
 
+    setLoading(true);
+    
     try {
-      localStorage.setItem("dev_user", JSON.stringify(devUser));
-      const mockSession = `dev_session_${btoa(JSON.stringify(devUser)).substring(0, 32)}`;
-      localStorage.setItem("session_token", mockSession);
-      
-      if (isAdmin) {
-        navigate("/admin");
-      } else if (isTeacher) {
-        navigate("/teacher");
-      } else {
-        navigate("/community");
+      const response = await fetch(`${BACKEND_URL}/api/auth/dev-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          user_id: `user_${formData.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${Date.now().toString(36)}`,
+          email: formData.email,
+          name: formData.name,
+          picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(formData.name)}`,
+          role: userRole,
+          department: formData.department,
+          year: parseInt(formData.year) || 2,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Login failed");
       }
+
+      const user = await response.json();
+      localStorage.setItem("dev_user", JSON.stringify(user));
+      
+      if (user.session_token) {
+        localStorage.setItem("session_token", user.session_token);
+      }
+      
+      if (userRole === "admin") navigate("/admin");
+      else if (userRole === "teacher") navigate("/teacher");
+      else navigate("/community");
     } catch (err) {
-      console.error("Dev login error:", err);
-      alert("Unable to complete dev login");
+      setError(err.message || "Unable to sign in. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cit-light px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded border border-gray-200 shadow-card p-8">
-          <div className="text-center mb-8">
-            <img 
-              src="/cit-logo.png" 
-              alt="CIT Chennai" 
-              className="h-16 mx-auto mb-4"
-            />
-            <h1
-              className="text-2xl font-heading font-bold text-cit-navy mb-2"
-              data-testid="login-title"
-            >
-              CIT Campus Connect
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center px-4 py-12">
+      <div className="max-w-sm w-full">
+        {/* Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center mx-auto mb-3">
+              <GraduationCap size={26} className="text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              Welcome to CCCP
             </h1>
-            <p className="text-gray-600">
-              Campus Civic & Community Platform
+            <p className="text-gray-500 text-sm">
+              Campus Connect Platform
             </p>
           </div>
 
-          <form onSubmit={handleDevLogin} className="space-y-4">
+          {/* Error */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Name */}
             <div>
-              <label className="block text-sm font-semibold text-cit-navy mb-2">Name</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <User size={14} />
+                Full Name
+              </label>
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Your name"
-                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter your name"
+                className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
+                required
               />
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-cit-navy mb-2">Email</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                <Mail size={14} />
+                Email
+              </label>
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                placeholder="your@campus.edu"
-                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="your.name@campus.edu"
+                className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
+                required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-cit-navy mb-2">
-                Department
-              </label>
-              <select
-                value={formData.department}
-                onChange={(e) =>
-                  setFormData({ ...formData, department: e.target.value })
-                }
-                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-              >
-                <option>CSE</option>
-                <option>ECE</option>
-                <option>Mechanical</option>
-                <option>Civil</option>
-                <option>Other</option>
-              </select>
+            {/* Department & Year */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
+                  <Building size={14} />
+                  Department
+                </label>
+                <select
+                  value={formData.department}
+                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
+                >
+                  <option value="CSE">CSE</option>
+                  <option value="ECE">ECE</option>
+                  <option value="IT">IT</option>
+                  <option value="Mechanical">Mech</option>
+                  <option value="Civil">Civil</option>
+                  <option value="EEE">EEE</option>
+                  <option value="AIML">AIML</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Year</label>
+                <select
+                  value={formData.year}
+                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                  className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
+                >
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                </select>
+              </div>
             </div>
 
+            {/* Role */}
             <div>
-              <label className="block text-sm font-semibold text-cit-navy mb-2">
-                Role
-              </label>
-              <select
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-                className="w-full h-10 px-3 rounded border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-cit-gold focus:border-cit-gold"
-              >
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-                <option value="admin">Admin</option>
-              </select>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">I am a...</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'student', label: 'Student', icon: '🎓' },
+                  { id: 'teacher', label: 'Teacher', icon: '👨‍🏫' },
+                  { id: 'admin', label: 'Admin', icon: '⚙️' },
+                ].map((role) => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: role.id })}
+                    className={`p-2.5 rounded-lg border-2 transition-all text-center ${
+                      formData.role === role.id
+                        ? 'bg-amber-50 border-amber-500 text-amber-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="text-lg block mb-0.5">{role.icon}</span>
+                    <span className="text-xs font-medium">{role.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 px-6 rounded bg-cit-navy text-white hover:bg-[#003875] font-semibold transition-all flex items-center justify-center gap-2 shadow-button disabled:opacity-50"
-              data-testid="dev-login-btn"
+              className="w-full h-11 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {loading ? "Signing in..." : "Sign In"}
-              <ArrowRight size={20} />
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <Link
-              to="/"
-              className="text-cit-gold hover:text-cit-navy text-sm font-medium"
-              data-testid="back-to-home"
-            >
-              ← Back to Home
-            </Link>
+          {/* Footer */}
+          <div className="mt-5 pt-5 border-t border-gray-100 text-center">
+            <p className="text-sm text-gray-500">
+              New here?{" "}
+              <Link to="/signup" className="text-amber-600 font-medium hover:text-amber-700 transition-colors">
+                Create Account
+              </Link>
+            </p>
           </div>
+        </div>
+
+        {/* Back Link */}
+        <div className="mt-4 text-center">
+          <Link to="/" className="text-gray-400 hover:text-gray-600 text-sm transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
+
+        {/* Trust */}
+        <div className="mt-4 flex items-center justify-center gap-4 text-gray-400 text-xs">
+          <span>🔒 Secure</span>
+          <span>•</span>
+          <span>🎓 Verified</span>
+          <span>•</span>
+          <span>⚡ Instant</span>
         </div>
       </div>
     </div>

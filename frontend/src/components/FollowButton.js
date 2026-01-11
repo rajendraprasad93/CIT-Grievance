@@ -1,22 +1,32 @@
 import { useState } from 'react';
 import { UserPlus, UserCheck } from 'lucide-react';
+import { apiPost, apiDelete } from '../lib/api';
 
 /**
- * FollowButton Component - Tier 2: Follow System
+ * FollowButton Component - Connected to backend
  */
 function FollowButton({ userId, initialFollowing = false, onFollowChange }) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
 
-  const handleFollow = async () => {
+  const handleFollow = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setLoading(true);
     try {
-      // TODO: API call to follow/unfollow
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API
-      
-      setIsFollowing(!isFollowing);
-      if (onFollowChange) {
-        onFollowChange(!isFollowing);
+      if (isFollowing) {
+        await apiDelete(`/api/users/${userId}/follow`);
+        setIsFollowing(false);
+        if (onFollowChange) {
+          onFollowChange(false);
+        }
+      } else {
+        await apiPost(`/api/users/${userId}/follow`);
+        setIsFollowing(true);
+        if (onFollowChange) {
+          onFollowChange(true);
+        }
       }
     } catch (error) {
       console.error('Follow error:', error);
