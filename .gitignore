@@ -65,12 +65,12 @@ frontend/.env
 !frontend/.env.example
 
 # ===================
-# Database Files
+# Database Files (commented out - needed for sharing)
 # ===================
-*.db
-*.sqlite
-*.sqlite3
-backend/*.db
+# *.db
+# *.sqlite
+# *.sqlite3
+# backend/*.db
 
 # ===================
 # Logs
