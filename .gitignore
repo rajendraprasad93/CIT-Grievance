@@ -65,12 +65,9 @@ frontend/.env
 !frontend/.env.example
 
 # ===================
-# Database Files (commented out - needed for sharing)
+# Database Files - INCLUDE THEM (they are necessary)
 # ===================
-# *.db
-# *.sqlite
-# *.sqlite3
-# backend/*.db
+# Note: .db files are intentionally NOT ignored as they are necessary
 
 # ===================
 # Logs

@@ -48,11 +48,15 @@ def init_database():
                 role TEXT DEFAULT 'student',
                 hostel TEXT,
                 department TEXT,
+                section TEXT,
                 year INTEGER,
+                class_info TEXT,
+                is_active BOOLEAN DEFAULT 1,
                 bio TEXT,
                 skills TEXT DEFAULT '[]',
                 interests TEXT DEFAULT '[]',
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -68,6 +72,41 @@ def init_database():
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN interests TEXT DEFAULT '[]'")
         except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN section TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN class_info TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute('ALTER TABLE users ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP')
+        except sqlite3.OperationalError:
+            pass
+        
+        # Also ensure the CREATE TABLE includes updated_at
+        # We need to update the existing records to have updated_at values
+        try:
+            cursor.execute('''
+                UPDATE users 
+                SET updated_at = CASE 
+                    WHEN updated_at IS NULL THEN created_at 
+                    ELSE updated_at 
+                END
+            ''')
+        except sqlite3.Error:
+            pass
+        
+        # Update updated_at column for existing records
+        try:
+            cursor.execute('UPDATE users SET updated_at = created_at WHERE updated_at IS NULL')
+        except sqlite3.Error:
             pass
         
         # User sessions table
@@ -377,7 +416,7 @@ def row_to_dict(row) -> Optional[Dict]:
     d = dict(row)
     
     # Parse JSON fields
-    json_fields = ['tags', 'affected_users', 'images', 'timeline', 'department', 'year', 'saved_by', 'skills', 'interests']
+    json_fields = ['tags', 'affected_users', 'images', 'timeline', 'saved_by', 'skills', 'interests']
     for field in json_fields:
         if field in d and d[field]:
             try:
@@ -415,9 +454,12 @@ def find_user_by_id(user_id: str) -> Optional[Dict]:
 def create_user(user_data: Dict) -> Dict:
     with get_db() as conn:
         cursor = conn.cursor()
+        # Prepare values with proper boolean conversion
+        is_active_value = 1 if user_data.get('is_active', True) else 0
+        
         cursor.execute('''
-            INSERT INTO users (user_id, email, name, picture, role, hostel, department, year, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (user_id, email, name, picture, role, hostel, department, section, year, class_info, is_active, bio, skills, interests, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             user_data['user_id'],
             user_data['email'],
@@ -426,20 +468,37 @@ def create_user(user_data: Dict) -> Dict:
             user_data.get('role', 'student'),
             user_data.get('hostel'),
             user_data.get('department'),
+            user_data.get('section'),
             user_data.get('year'),
-            user_data.get('created_at', datetime.now(timezone.utc).isoformat())
+            user_data.get('class_info'),
+            is_active_value,
+            user_data.get('bio'),
+            user_data.get('skills', '[]'),
+            user_data.get('interests', '[]'),
+            user_data.get('created_at', datetime.now(timezone.utc).isoformat()),
+            user_data.get('updated_at', datetime.now(timezone.utc).isoformat())
         ))
-        return find_user_by_id(user_data['user_id'])
+        
+    # Query the user after the transaction commits
+    return find_user_by_id(user_data['user_id'])
 
 def update_user(user_id: str, updates: Dict) -> Optional[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
         set_clauses = []
         values = []
+        
         for key, value in updates.items():
-            if key != 'user_id':
+            if key not in ['user_id', 'created_at']:
+                # Handle boolean values for is_active
+                if key == 'is_active':
+                    value = 1 if value else 0
                 set_clauses.append(f'{key} = ?')
                 values.append(value)
+        
+        # Always update updated_at
+        set_clauses.append('updated_at = ?')
+        values.append(datetime.now(timezone.utc).isoformat())
         
         if set_clauses:
             values.append(user_id)
@@ -447,7 +506,8 @@ def update_user(user_id: str, updates: Dict) -> Optional[Dict]:
                 UPDATE users SET {', '.join(set_clauses)} WHERE user_id = ?
             ''', values)
         
-        return find_user_by_id(user_id)
+    # Query the user after the transaction commits
+    return find_user_by_id(user_id)
 
 
 # ============ ADMIN USER MANAGEMENT ============
@@ -539,9 +599,14 @@ def update_user_role(user_id: str, new_role: str) -> Optional[Dict]:
 
 def update_user_status(user_id: str, is_active: bool) -> Optional[Dict]:
     """Update user active status (admin only)"""
-    # Note: We'll need to add an 'is_active' field to users table if needed
-    # For now, we'll just return the user since the table doesn't have this field yet
-    return find_user_by_id(user_id)
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET is_active = ? WHERE user_id = ?', (1 if is_active else 0, user_id))
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            return find_user_by_id(user_id)
+        return None
 
 
 # ============ ANALYTICS & STATISTICS ============
@@ -1215,6 +1280,7 @@ def create_opportunity(opp_data: Dict) -> Dict:
             1 if opp_data.get('verified') else 0,
             opp_data.get('created_at', datetime.now(timezone.utc).isoformat())
         ))
+        conn.commit()
         return find_opportunity(opp_data['opp_id'])
 
 def update_opportunity(opp_id: str, updates: Dict) -> Optional[Dict]:

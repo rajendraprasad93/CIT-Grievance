@@ -5,7 +5,8 @@ import {
   Clock, XCircle, Brain, Filter, ChevronDown, ChevronUp, Layers, 
   BarChart3, Zap, AlertCircle, Info, Search, RefreshCw, Eye, Shield,
   Trash2, CheckCircle2, Flag, User, FileText, ThumbsUp, ThumbsDown, Plus,
-  Building, MapPin, Calendar, Link as LinkIcon, DollarSign, GraduationCap
+  Building, MapPin, Calendar, Link as LinkIcon, DollarSign, GraduationCap,
+  Activity, Database, Settings
 } from 'lucide-react';
 import { apiGet, apiPut, apiPost, apiDelete } from '../lib/api';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,138 +24,147 @@ const safeFormatDistanceToNow = (dateString) => {
   }
 };
 
-// Mock AI-Flagged Posts for Moderation
+// Mock AI-Flagged Posts for Moderation (Prototype Static Backup)
+// Used as a static backup when API is unavailable or for prototype demonstration
 const mockFlaggedPosts = [
   {
-    id: 'flag_001',
-    postId: 'moment_abc123',
-    postType: 'moment',
+    flag_id: 'flag_001',
+    post_id: 'moment_abc123',
+    post_type: 'moment',
     content: 'This professor is absolutely useless and should be fired immediately. Worst teaching ever seen in this college. Complete waste of time attending these lectures.',
-    authorName: 'Anonymous Student',
-    authorRole: 'student',
-    authorId: 'user_123',
+    author_name: 'Anonymous Student',
+    author_role: 'student',
+    author_id: 'user_123',
     classroom: 'CSE - Section A',
     department: 'CSE',
-    riskCategory: 'harassment',
-    riskSeverity: 'high',
-    confidenceScore: 0.89,
-    flaggedAt: '2026-01-08T09:15:00Z',
-    interactions: { likes: 12, comments: 8 },
-    aiReasoning: 'Content contains personal attacks and derogatory language targeting faculty. High confidence of harassment based on aggressive tone and calls for termination.',
+    risk_category: 'harassment',
+    risk_severity: 'high',
+    confidence_score: 0.89,
+    flagged_at: '2026-01-08T09:15:00Z',
+    interactions_likes: 12,
+    interactions_comments: 8,
+    ai_reasoning: 'Content contains personal attacks and derogatory language targeting faculty. High confidence of harassment based on aggressive tone and calls for termination.',
     status: 'pending',
-    reviewedBy: null,
-    reviewedAt: null
+    reviewed_by: null,
+    reviewed_at: null
   },
   {
-    id: 'flag_002',
-    postId: 'moment_def456',
-    postType: 'moment',
+    flag_id: 'flag_002',
+    post_id: 'moment_def456',
+    post_type: 'moment',
     content: 'Feeling so overwhelmed with everything. Sometimes I wonder if it\'s even worth continuing. The pressure is just too much to handle anymore.',
-    authorName: 'Priya Sharma',
-    authorRole: 'student',
-    authorId: 'user_456',
+    author_name: 'Priya Sharma',
+    author_role: 'student',
+    author_id: 'user_456',
     classroom: 'ECE - Section B',
     department: 'ECE',
-    riskCategory: 'self_harm',
-    riskSeverity: 'critical',
-    confidenceScore: 0.76,
-    flaggedAt: '2026-01-08T08:30:00Z',
-    interactions: { likes: 3, comments: 15 },
-    aiReasoning: 'Content indicates potential mental health concerns with phrases suggesting hopelessness. Flagged for immediate review due to self-harm indicators.',
+    risk_category: 'self_harm',
+    risk_severity: 'critical',
+    confidence_score: 0.76,
+    flagged_at: '2026-01-08T08:30:00Z',
+    interactions_likes: 3,
+    interactions_comments: 15,
+    ai_reasoning: 'Content indicates potential mental health concerns with phrases suggesting hopelessness. Flagged for immediate review due to self-harm indicators.',
     status: 'pending',
-    reviewedBy: null,
-    reviewedAt: null
+    reviewed_by: null,
+    reviewed_at: null
   },
   {
-    id: 'flag_003',
-    postId: 'comment_ghi789',
-    postType: 'comment',
+    flag_id: 'flag_003',
+    post_id: 'comment_ghi789',
+    post_type: 'comment',
     content: 'Students from that state are always like this. They don\'t belong here and should go back where they came from.',
-    authorName: 'Rahul V',
-    authorRole: 'student',
-    authorId: 'user_789',
+    author_name: 'Rahul V',
+    author_role: 'student',
+    author_id: 'user_789',
     classroom: 'Mechanical - Section A',
     department: 'Mechanical',
-    riskCategory: 'hate_speech',
-    riskSeverity: 'critical',
-    confidenceScore: 0.94,
-    flaggedAt: '2026-01-08T07:45:00Z',
-    interactions: { likes: 2, comments: 4 },
-    aiReasoning: 'Content contains discriminatory language targeting regional identity. Clear violation of community guidelines regarding hate speech.',
+    risk_category: 'hate_speech',
+    risk_severity: 'critical',
+    confidence_score: 0.94,
+    flagged_at: '2026-01-08T07:45:00Z',
+    interactions_likes: 2,
+    interactions_comments: 4,
+    ai_reasoning: 'Content contains discriminatory language targeting regional identity. Clear violation of community guidelines regarding hate speech.',
     status: 'pending',
-    reviewedBy: null,
-    reviewedAt: null
+    reviewed_by: null,
+    reviewed_at: null
   },
   {
-    id: 'flag_004',
-    postId: 'moment_jkl012',
-    postType: 'moment',
+    flag_id: 'flag_004',
+    post_id: 'moment_jkl012',
+    post_type: 'moment',
     content: 'Heard from a friend that the exam paper was leaked. Everyone in Section B already has the questions. This is so unfair!',
-    authorName: 'Vikram Singh',
-    authorRole: 'student',
-    authorId: 'user_012',
+    author_name: 'Vikram Singh',
+    author_role: 'student',
+    author_id: 'user_012',
     classroom: 'CSE - Section C',
     department: 'CSE',
-    riskCategory: 'misinformation',
-    riskSeverity: 'medium',
-    confidenceScore: 0.71,
-    flaggedAt: '2026-01-07T22:00:00Z',
-    interactions: { likes: 45, comments: 32 },
-    aiReasoning: 'Unverified claim about exam paper leak spreading rapidly. Could cause panic and unfair accusations. Flagged as potential misinformation.',
+    risk_category: 'misinformation',
+    risk_severity: 'medium',
+    confidence_score: 0.71,
+    flagged_at: '2026-01-07T22:00:00Z',
+    interactions_likes: 45,
+    interactions_comments: 32,
+    ai_reasoning: 'Unverified claim about exam paper leak spreading rapidly. Could cause panic and unfair accusations. Flagged as potential misinformation.',
     status: 'reviewed',
-    reviewedBy: 'Admin User',
-    reviewedAt: '2026-01-08T06:00:00Z'
+    reviewed_by: 'Admin User',
+    reviewed_at: '2026-01-08T06:00:00Z'
   },
   {
-    id: 'flag_005',
-    postId: 'moment_mno345',
-    postType: 'moment',
+    flag_id: 'flag_005',
+    post_id: 'moment_mno345',
+    post_type: 'moment',
     content: 'That guy in our class is such a loser. Nobody should talk to him. Let\'s make sure he knows he\'s not welcome in our group.',
-    authorName: 'Sneha P',
-    authorRole: 'student',
-    authorId: 'user_345',
+    author_name: 'Sneha P',
+    author_role: 'student',
+    author_id: 'user_345',
     classroom: 'IT - Section A',
     department: 'IT',
-    riskCategory: 'bullying',
-    riskSeverity: 'high',
-    confidenceScore: 0.88,
-    flaggedAt: '2026-01-07T18:30:00Z',
-    interactions: { likes: 8, comments: 6 },
-    aiReasoning: 'Content promotes social exclusion and contains derogatory language targeting an individual. Clear indicators of bullying behavior.',
+    risk_category: 'bullying',
+    risk_severity: 'high',
+    confidence_score: 0.88,
+    flagged_at: '2026-01-07T18:30:00Z',
+    interactions_likes: 8,
+    interactions_comments: 6,
+    ai_reasoning: 'Content promotes social exclusion and contains derogatory language targeting an individual. Clear indicators of bullying behavior.',
     status: 'pending',
-    reviewedBy: null,
-    reviewedAt: null
+    reviewed_by: null,
+    reviewed_at: null
   },
   {
-    id: 'flag_006',
-    postId: 'announcement_pqr678',
-    postType: 'announcement',
+    flag_id: 'flag_006',
+    post_id: 'announcement_pqr678',
+    post_type: 'announcement',
     content: 'Important: All students must pay Rs. 5000 to my personal account for lab equipment. This is mandatory and must be done by tomorrow.',
-    authorName: 'Dr. Kumar (Unverified)',
-    authorRole: 'teacher',
-    authorId: 'user_678',
+    author_name: 'Dr. Kumar (Unverified)',
+    author_role: 'teacher',
+    author_id: 'user_678',
     classroom: 'Civil - Section B',
     department: 'Civil',
-    riskCategory: 'policy_violation',
-    riskSeverity: 'high',
-    confidenceScore: 0.92,
-    flaggedAt: '2026-01-07T14:00:00Z',
-    interactions: { likes: 1, comments: 12 },
-    aiReasoning: 'Suspicious financial request to personal account. Potential impersonation or policy violation. Requires immediate verification.',
+    risk_category: 'policy_violation',
+    risk_severity: 'high',
+    confidence_score: 0.92,
+    flagged_at: '2026-01-07T14:00:00Z',
+    interactions_likes: 1,
+    interactions_comments: 12,
+    ai_reasoning: 'Suspicious financial request to personal account. Potential impersonation or policy violation. Requires immediate verification.',
     status: 'removed',
-    reviewedBy: 'Admin User',
-    reviewedAt: '2026-01-07T15:30:00Z'
+    reviewed_by: 'Admin User',
+    reviewed_at: '2026-01-07T15:30:00Z'
   }
 ];
 
-// Moderation action log
+// Moderation action log (Prototype Static Backup)
+// Used as a static backup when API is unavailable or for prototype demonstration
 const mockModerationLog = [
   { id: 1, action: 'removed', postId: 'announcement_pqr678', adminName: 'Admin User', timestamp: '2026-01-07T15:30:00Z', reason: 'Fraudulent financial request' },
   { id: 2, action: 'approved', postId: 'moment_xyz999', adminName: 'Admin User', timestamp: '2026-01-07T12:00:00Z', reason: 'False positive - legitimate complaint' },
   { id: 3, action: 'reviewed', postId: 'moment_jkl012', adminName: 'Admin User', timestamp: '2026-01-08T06:00:00Z', reason: 'Marked for monitoring' },
 ];
 
-// Mock AI-Aggregated Issues Data
+// Mock AI-Aggregated Issues Data (Prototype Static Backup)
+// Used as a static backup when API is unavailable or for prototype demonstration
 const mockAggregatedIssues = [
   {
     id: 'agg_001',
@@ -286,24 +296,25 @@ function AdminDashboard() {
     totalMoments: 0, totalOpportunities: 0,
   });
   const [recentIssues, setRecentIssues] = useState([]);
-  const [aggregatedIssues, setAggregatedIssues] = useState(mockAggregatedIssues);
+  const [aggregatedIssues, setAggregatedIssues] = useState([...mockAggregatedIssues]);
   const [loading, setLoading] = useState(true);
   const [aiProcessing, setAiProcessing] = useState(false);
   
   // Moderation state
-  const [flaggedPosts, setFlaggedPosts] = useState([]);
-  const [moderationLog, setModerationLog] = useState([]);
+  const [flaggedPosts, setFlaggedPosts] = useState(mockFlaggedPosts);
+  const [moderationLog, setModerationLog] = useState(mockModerationLog);
   const [modRiskFilter, setModRiskFilter] = useState('all');
   const [modSeverityFilter, setModSeverityFilter] = useState('all');
   const [modStatusFilter, setModStatusFilter] = useState('pending');
+  const [modAccountFilter, setModAccountFilter] = useState('all'); // Filter by account type
   const [modSortBy, setModSortBy] = useState('severity');
   const [selectedPost, setSelectedPost] = useState(null);
   const [moderationStats, setModerationStats] = useState({
-    total_flagged: 0,
-    pending: 0,
-    approved: 0,
-    removed: 0,
-    reviewed: 0
+    total_flagged: mockFlaggedPosts.length,
+    pending: mockFlaggedPosts.filter(p => p.status === 'pending').length,
+    approved: mockFlaggedPosts.filter(p => p.status === 'approved').length,
+    removed: mockFlaggedPosts.filter(p => p.status === 'removed').length,
+    reviewed: mockFlaggedPosts.filter(p => p.status === 'reviewed').length
   });
   
   // Filters for aggregated issues
@@ -314,6 +325,20 @@ function AdminDashboard() {
   const [expandedIssue, setExpandedIssue] = useState(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisResults, setAnalysisResults] = useState(null);
+  
+  // Additional admin dashboard state
+  const [users, setUsers] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [userStats, setUserStats] = useState({});
+  const [contentStats, setContentStats] = useState({});
+  const [trendData, setTrendData] = useState([]);
+  const [systemConfig, setSystemConfig] = useState({});
+  const [loadingSections, setLoadingSections] = useState({
+    users: false,
+    auditLogs: false,
+    analytics: false,
+    config: false
+  });
 
   // Opportunity management state
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
@@ -336,6 +361,7 @@ function AdminDashboard() {
   useEffect(() => {
     console.log('AdminDashboard mounted or tab changed to:', activeTab);
     // Always fetch dashboard data when component mounts or tab changes
+    // Uses static mock data as prototype backup when API is unavailable
     fetchDashboardData();
     
     // Additionally fetch moderation data if on moderation tab
@@ -346,6 +372,26 @@ function AdminDashboard() {
     // Fetch aggregated issues if on AI insights tab
     if (activeTab === 'ai-insights') {
       fetchAggregatedIssues();
+    }
+    
+    // Fetch user management data if on user management tab
+    if (activeTab === 'user-management') {
+      fetchUsersData();
+    }
+    
+    // Fetch audit logs if on audit logs tab
+    if (activeTab === 'audit-logs') {
+      fetchAuditLogs();
+    }
+    
+    // Fetch analytics data if on analytics tab
+    if (activeTab === 'analytics') {
+      fetchAnalyticsData();
+    }
+    
+    // Fetch system config if on system config tab
+    if (activeTab === 'system-config') {
+      fetchSystemConfig();
     }
   }, [activeTab]);
 
@@ -414,6 +460,13 @@ function AdminDashboard() {
       // Keep using mock data if API fails
       setFlaggedPosts(mockFlaggedPosts);
       setModerationLog(mockModerationLog);
+      setModerationStats({
+        total_flagged: mockFlaggedPosts.length,
+        pending: mockFlaggedPosts.filter(p => p.status === 'pending').length,
+        approved: mockFlaggedPosts.filter(p => p.status === 'approved').length,
+        removed: mockFlaggedPosts.filter(p => p.status === 'removed').length,
+        reviewed: mockFlaggedPosts.filter(p => p.status === 'reviewed').length
+      });
     }
   };
 
@@ -449,7 +502,11 @@ function AdminDashboard() {
         setShowAnalysisModal(true);
         
         // Also show a brief notification
-        alert(`✅ AI Analysis Complete!\n\nFound ${analysisResult.clusters_found} issue clusters from ${analysisResult.total_issues_processed} issues.\n\nClick OK to view detailed results.`);
+        alert(`✅ AI Analysis Complete!
+
+Found ${analysisResult.clusters_found} issue clusters from ${analysisResult.total_issues_processed} issues and moments.
+
+Click OK to view detailed results.`);
       } else {
         alert(`AI analysis completed! Found ${analysisResult.clusters_found || 0} issue clusters.`);
       }
@@ -479,6 +536,110 @@ function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching aggregated issues:', error);
       // Keep using mock data as fallback
+      setAggregatedIssues([...mockAggregatedIssues]);
+    }
+  };
+
+  const fetchUsersData = async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, users: true }));
+      const data = await apiGet('/api/admin/users');
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Error fetching users data:', error);
+      // Use mock data as fallback
+      setUsers([
+        { user_id: 'user_1', name: 'John Doe', email: 'john@example.com', role: 'student', department: 'CSE', year: 3, active: true },
+        { user_id: 'user_2', name: 'Jane Smith', email: 'jane@example.com', role: 'teacher', department: 'CSE', active: true },
+        { user_id: 'user_3', name: 'Bob Johnson', email: 'bob@example.com', role: 'admin', active: true },
+        { user_id: 'user_4', name: 'Alice Williams', email: 'alice@example.com', role: 'student', department: 'AIML', year: 2, active: false },
+      ]);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, users: false }));
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, auditLogs: true }));
+      const data = await apiGet('/api/admin/audit-logs');
+      setAuditLogs(data.logs || []);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      // Use mock data as fallback
+      setAuditLogs([
+        { id: 1, action: 'user_created', user_id: 'user_1', admin_name: 'Admin User', timestamp: '2026-01-08T10:30:00Z', details: 'Created new student account' },
+        { id: 2, action: 'issue_updated', user_id: 'user_2', admin_name: 'Admin User', timestamp: '2026-01-08T09:15:00Z', details: 'Updated issue status to resolved' },
+        { id: 3, action: 'content_flagged', user_id: 'user_3', admin_name: 'Admin User', timestamp: '2026-01-08T08:45:00Z', details: 'Flagged inappropriate content' },
+        { id: 4, action: 'user_banned', user_id: 'user_4', admin_name: 'Admin User', timestamp: '2026-01-08T07:20:00Z', details: 'Banned user for policy violation' },
+      ]);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, auditLogs: false }));
+    }
+  };
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, analytics: true }));
+      const [userStatsRes, contentStatsRes, trendDataRes] = await Promise.all([
+        apiGet('/api/admin/stats/users'),
+        apiGet('/api/admin/stats/content'),
+        apiGet('/api/admin/analytics/trends')
+      ]);
+      
+      setUserStats(userStatsRes.stats || {});
+      setContentStats(contentStatsRes.stats || {});
+      setTrendData(trendDataRes.trends || []);
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      // Use mock data as fallback
+      setUserStats({
+        total_users: 1250,
+        active_today: 342,
+        new_registrations: 15,
+        suspended_accounts: 3
+      });
+      setContentStats({
+        total_moments: 845,
+        total_issues: 128,
+        total_comments: 2103,
+        flagged_content: 12
+      });
+      setTrendData([
+        { date: '2026-01-01', users: 120, moments: 45, issues: 8 },
+        { date: '2026-01-02', users: 145, moments: 52, issues: 12 },
+        { date: '2026-01-03', users: 168, moments: 58, issues: 9 },
+        { date: '2026-01-04', users: 189, moments: 65, issues: 15 },
+        { date: '2026-01-05', users: 210, moments: 72, issues: 11 },
+        { date: '2026-01-06', users: 234, moments: 78, issues: 18 },
+        { date: '2026-01-07', users: 256, moments: 84, issues: 14 },
+        { date: '2026-01-08', users: 278, moments: 91, issues: 16 },
+      ]);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, analytics: false }));
+    }
+  };
+
+  const fetchSystemConfig = async () => {
+    try {
+      setLoadingSections(prev => ({ ...prev, config: true }));
+      const data = await apiGet('/api/admin/config');
+      setSystemConfig(data.config || {});
+    } catch (error) {
+      console.error('Error fetching system config:', error);
+      // Use mock data as fallback
+      setSystemConfig({
+        site_name: 'Campus Connect',
+        maintenance_mode: false,
+        registration_open: true,
+        content_moderation_enabled: true,
+        ai_features_enabled: true,
+        daily_active_limit: 1000,
+        storage_quota_per_user: '100MB',
+        last_backup: '2026-01-07T23:59:59Z'
+      });
+    } finally {
+      setLoadingSections(prev => ({ ...prev, config: false }));
     }
   };
 
@@ -600,6 +761,7 @@ function AdminDashboard() {
     .filter(p => modRiskFilter === 'all' || p.risk_category === modRiskFilter)
     .filter(p => modSeverityFilter === 'all' || p.risk_severity === modSeverityFilter)
     .filter(p => modStatusFilter === 'all' || p.status === modStatusFilter)
+    .filter(p => modAccountFilter === 'all' || p.author_role === modAccountFilter)
     .sort((a, b) => {
       if (modSortBy === 'severity') {
         const order = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -735,6 +897,50 @@ function AdminDashboard() {
                 {flaggedPosts.filter(p => p.status === 'pending').length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('user-management')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'user-management' 
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Users size={16} />
+            User Management
+          </button>
+          <button
+            onClick={() => setActiveTab('audit-logs')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'audit-logs' 
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <FileText size={16} />
+            Audit Logs
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'analytics' 
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <BarChart3 size={16} />
+            Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('system-config')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'system-config' 
+                ? 'border-amber-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <Settings size={16} />
+            System Config
           </button>
         </div>
 
@@ -876,6 +1082,58 @@ function AdminDashboard() {
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Location Grouping</span>
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Category Matching</span>
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Impact Assessment</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Insights Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <AlertTriangle className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{aggregatedIssues.length}</p>
+                    <p className="text-xs text-gray-500">Issue Clusters</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                    <AlertTriangle className="text-red-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{aggregatedIssues.filter(i => i.severity === 'critical').length}</p>
+                    <p className="text-xs text-gray-500">Critical Issues</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Users className="text-amber-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-amber-600">
+                      {aggregatedIssues.reduce((sum, issue) => sum + issue.totalAffected, 0)}
+                    </p>
+                    <p className="text-xs text-gray-500">Affected Students</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-amber-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <TrendingUp className="text-emerald-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {aggregatedIssues.filter(i => i.trend === 'increasing').length}
+                    </p>
+                    <p className="text-xs text-gray-500">Worsening Trends</p>
                   </div>
                 </div>
               </div>
@@ -1239,6 +1497,17 @@ function AdminDashboard() {
                 </select>
 
                 <select
+                  value={modAccountFilter}
+                  onChange={(e) => setModAccountFilter(e.target.value)}
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                  <option key="all-account" value="all">All Account Types</option>
+                  <option key="student-account" value="student">Student Posts</option>
+                  <option key="teacher-account" value="teacher">Teacher Posts</option>
+                  <option key="admin-account" value="admin">Admin Posts</option>
+                </select>
+
+                <select
                   value={modStatusFilter}
                   onChange={(e) => setModStatusFilter(e.target.value)}
                   className="h-9 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
@@ -1432,6 +1701,466 @@ function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* User Management Tab */}
+        {activeTab === 'user-management' && (
+          <div>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Users className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">User Management</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Manage user accounts, roles, and permissions across the platform. 
+                    View user details and update account status as needed.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">User Roles</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">Account Status</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">Permissions</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">Bulk Actions</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* User Management Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <Users className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{users.length}</p>
+                    <p className="text-xs text-gray-500">Total Users</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="text-green-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{users.filter(u => u.active).length}</p>
+                    <p className="text-xs text-gray-500">Active Accounts</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <User className="text-amber-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-amber-600">{users.filter(u => u.role === 'student').length}</p>
+                    <p className="text-xs text-gray-500">Students</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <GraduationCap className="text-purple-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-purple-600">{users.filter(u => u.role === 'teacher').length}</p>
+                    <p className="text-xs text-gray-500">Teachers</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loadingSections.users && (
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading users...</p>
+              </div>
+            )}
+
+            {/* Users List */}
+            {!loadingSections.users && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Users size={18} />
+                    User Directory ({users.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr key={user.user_id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <span className="text-gray-600">{user.name.charAt(0)}</span>
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.role === 'admin' ? 'bg-red-100 text-red-800' : 
+                              user.role === 'teacher' ? 'bg-purple-100 text-purple-800' : 
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {user.role.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {user.department || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {user.year ? `Year ${user.year}` : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                            <button className="text-red-600 hover:text-red-900">Suspend</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Audit Logs Tab */}
+        {activeTab === 'audit-logs' && (
+          <div>
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <FileText className="text-amber-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Audit Logs</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Track all administrative actions and system events. Monitor user activities, 
+                    content changes, and security-related events for compliance and oversight.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Admin Actions</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Security Events</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Content Changes</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Compliance</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loadingSections.auditLogs && (
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading audit logs...</p>
+              </div>
+            )}
+
+            {/* Audit Logs List */}
+            {!loadingSections.auditLogs && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText size={18} />
+                    Recent Audit Trail ({auditLogs.length})
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded">
+                              {log.action}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {safeFormatDistanceToNow(log.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-900 mb-1">
+                            <span className="font-medium">{log.admin_name}</span> {log.details}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>User ID: {log.user_id}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div>
+            <div className="bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Platform Analytics</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Monitor platform usage, engagement metrics, and content trends. 
+                    Track user growth, content creation, and system performance over time.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">User Growth</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Engagement</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Content Trends</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Performance</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Analytics Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-green-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                    <Users className="text-green-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{userStats.total_users || 0}</p>
+                    <p className="text-xs text-gray-500">Total Users</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-green-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <MessageCircle className="text-blue-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{contentStats.total_moments || 0}</p>
+                    <p className="text-xs text-gray-500">Total Moments</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-green-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <AlertTriangle className="text-orange-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-600">{contentStats.total_issues || 0}</p>
+                    <p className="text-xs text-gray-500">Total Issues</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-green-300 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <Activity className="text-purple-600" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-purple-600">{userStats.active_today || 0}</p>
+                    <p className="text-xs text-gray-500">Active Today</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loadingSections.analytics && (
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading analytics...</p>
+              </div>
+            )}
+
+            {/* Content Stats */}
+            {!loadingSections.analytics && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Activity size={18} />
+                    Content Overview
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Total Comments</span>
+                      <span className="font-medium">{contentStats.total_comments || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Flagged Content</span>
+                      <span className="font-medium">{contentStats.flagged_content || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">New Registrations</span>
+                      <span className="font-medium">{userStats.new_registrations || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Suspended Accounts</span>
+                      <span className="font-medium">{userStats.suspended_accounts || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <TrendingUp size={18} />
+                    Recent Trends
+                  </h4>
+                  <div className="space-y-4">
+                    {trendData.slice(-5).reverse().map((day, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-gray-600 text-sm">{new Date(day.date).toLocaleDateString()}</span>
+                        <div className="flex gap-4">
+                          <span className="text-blue-600 font-medium">{day.moments} moments</span>
+                          <span className="text-orange-600 font-medium">{day.issues} issues</span>
+                          <span className="text-green-600 font-medium">{day.users} users</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* System Configuration Tab */}
+        {activeTab === 'system-config' && (
+          <div>
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <Settings className="text-purple-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">System Configuration</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Configure system-wide settings, manage platform policies, and monitor system health. 
+                    Adjust features and settings that affect the entire platform.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">Site Settings</span>
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">Feature Toggles</span>
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">Maintenance</span>
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">Backup</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loadingSections.config && (
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading system configuration...</p>
+              </div>
+            )}
+
+            {/* System Configuration */}
+            {!loadingSections.config && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Settings size={18} />
+                    Site Settings
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Site Name</span>
+                      <span className="font-medium">{systemConfig.site_name || 'Not configured'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Registration Open</span>
+                      <span className={`font-medium ${systemConfig.registration_open ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemConfig.registration_open ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Maintenance Mode</span>
+                      <span className={`font-medium ${systemConfig.maintenance_mode ? 'text-red-600' : 'text-green-600'}`}>
+                        {systemConfig.maintenance_mode ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">AI Features Enabled</span>
+                      <span className={`font-medium ${systemConfig.ai_features_enabled ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemConfig.ai_features_enabled ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Content Moderation</span>
+                      <span className={`font-medium ${systemConfig.content_moderation_enabled ? 'text-green-600' : 'text-red-600'}`}>
+                        {systemConfig.content_moderation_enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Database size={18} />
+                    System Limits
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Daily Active Limit</span>
+                      <span className="font-medium">{systemConfig.daily_active_limit || 'Unlimited'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Storage Per User</span>
+                      <span className="font-medium">{systemConfig.storage_quota_per_user || 'Unlimited'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Last Backup</span>
+                      <span className="font-medium">{safeFormatDistanceToNow(systemConfig.last_backup) || 'Never'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Version</span>
+                      <span className="font-medium">1.0.0</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Uptime</span>
+                      <span className="font-medium">99.9%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* AI Analysis Results Modal */}

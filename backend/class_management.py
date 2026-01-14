@@ -223,6 +223,47 @@ def init_class_management_tables():
             )
         ''')
         
+        # Class Assignments
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS class_assignments (
+                assignment_id TEXT PRIMARY KEY,
+                class_id TEXT NOT NULL,
+                teacher_id TEXT NOT NULL,
+                teacher_name TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                subject TEXT,
+                due_date TEXT NOT NULL,
+                submission_date TEXT,
+                total_marks REAL,
+                attachments TEXT DEFAULT '[]',
+                status TEXT DEFAULT 'open',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (class_id) REFERENCES classes(class_id),
+                FOREIGN KEY (teacher_id) REFERENCES users(user_id)
+            )
+        ''')
+        
+        # Assignment Submissions
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS assignment_submissions (
+                submission_id TEXT PRIMARY KEY,
+                assignment_id TEXT NOT NULL,
+                student_id TEXT NOT NULL,
+                student_name TEXT NOT NULL,
+                submitted_at TEXT NOT NULL,
+                updated_at TEXT,
+                file_path TEXT,
+                marks_obtained REAL,
+                status TEXT DEFAULT 'submitted',
+                feedback TEXT,
+                FOREIGN KEY (assignment_id) REFERENCES class_assignments(assignment_id),
+                FOREIGN KEY (student_id) REFERENCES users(user_id),
+                UNIQUE(assignment_id, student_id)
+            )
+        ''')
+        
         # Create indexes
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_teacher_classes_teacher ON teacher_classes(teacher_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_teacher_classes_class ON teacher_classes(class_id)')
@@ -232,6 +273,10 @@ def init_class_management_tables():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_polls_class ON class_polls(class_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_forum_posts_class ON class_forum_posts(class_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON poll_votes(poll_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_assignments_class ON class_assignments(class_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON class_assignments(teacher_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_assignment_submissions_assignment ON assignment_submissions(assignment_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_assignment_submissions_student ON assignment_submissions(student_id)')
         
         conn.commit()
         print("[OK] Class management tables initialized")
@@ -1070,6 +1115,307 @@ def delete_forum_comment(comment_id: str, post_id: str) -> bool:
                           (post_id,))
         conn.commit()
         return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+# ============ ASSIGNMENT OPERATIONS ============
+
+def create_assignment(class_id: str, teacher_id: str, teacher_name: str,
+                   title: str, description: str, subject: str = None,
+                   due_date: str = None, total_marks: float = None) -> Dict:
+    """Create a class assignment"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        assignment_id = f"assign_{uuid.uuid4().hex[:12]}"
+        now = datetime.now(timezone.utc).isoformat()
+        
+        cursor.execute('''
+            INSERT INTO class_assignments 
+            (assignment_id, class_id, teacher_id, teacher_name, title, description, 
+             subject, due_date, total_marks, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (assignment_id, class_id, teacher_id, teacher_name, title, description, 
+              subject, due_date, total_marks, now, now))
+        conn.commit()
+        return get_assignment_by_id(assignment_id)
+    finally:
+        conn.close()
+
+
+def get_assignment_by_id(assignment_id: str) -> Optional[Dict]:
+    """Get assignment by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT * FROM class_assignments WHERE assignment_id = ?', (assignment_id,))
+        return row_to_dict(cursor.fetchone())
+    finally:
+        conn.close()
+
+
+def get_class_assignments(class_id: str, status: str = None) -> List[Dict]:
+    """Get all assignments for a class"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        query = 'SELECT * FROM class_assignments WHERE class_id = ?'
+        params = [class_id]
+        
+        if status:
+            query += ' AND status = ?'
+            params.append(status)
+        
+        query += ' ORDER BY due_date ASC, created_at DESC'
+        
+        cursor.execute(query, params)
+        return rows_to_list(cursor.fetchall())
+    finally:
+        conn.close()
+
+
+def update_assignment(assignment_id: str, title: str = None, description: str = None,
+                     subject: str = None, due_date: str = None, total_marks: float = None,
+                     status: str = None) -> Optional[Dict]:
+    """Update an assignment"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        updates = []
+        params = []
+        if title:
+            updates.append('title = ?')
+            params.append(title)
+        if description:
+            updates.append('description = ?')
+            params.append(description)
+        if subject:
+            updates.append('subject = ?')
+            params.append(subject)
+        if due_date:
+            updates.append('due_date = ?')
+            params.append(due_date)
+        if total_marks is not None:
+            updates.append('total_marks = ?')
+            params.append(total_marks)
+        if status:
+            updates.append('status = ?')
+            params.append(status)
+        
+        if not updates:
+            return get_assignment_by_id(assignment_id)
+        
+        updates.append('updated_at = ?')
+        params.append(datetime.now(timezone.utc).isoformat())
+        params.append(assignment_id)
+        
+        cursor.execute(f'''
+            UPDATE class_assignments SET {', '.join(updates)}
+            WHERE assignment_id = ?
+        ''', params)
+        conn.commit()
+        return get_assignment_by_id(assignment_id)
+    finally:
+        conn.close()
+
+
+def delete_assignment(assignment_id: str) -> bool:
+    """Delete an assignment and its submissions"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Delete submissions first
+        cursor.execute('DELETE FROM assignment_submissions WHERE assignment_id = ?', (assignment_id,))
+        # Delete assignment
+        cursor.execute('DELETE FROM class_assignments WHERE assignment_id = ?', (assignment_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def submit_assignment(assignment_id: str, student_id: str, student_name: str,
+                    file_path: str = None, marks_obtained: float = None) -> Dict:
+    """Submit an assignment"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+        now = datetime.now(timezone.utc).isoformat()
+        
+        cursor.execute('''
+            INSERT INTO assignment_submissions 
+            (submission_id, assignment_id, student_id, student_name, submitted_at, file_path, marks_obtained)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (submission_id, assignment_id, student_id, student_name, now, file_path, marks_obtained))
+        conn.commit()
+        return get_submission_by_id(submission_id)
+    finally:
+        conn.close()
+
+
+def get_submission_by_id(submission_id: str) -> Optional[Dict]:
+    """Get assignment submission by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT * FROM assignment_submissions WHERE submission_id = ?', (submission_id,))
+        return row_to_dict(cursor.fetchone())
+    finally:
+        conn.close()
+
+
+def get_assignment_submissions(assignment_id: str) -> List[Dict]:
+    """Get all submissions for an assignment"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT * FROM assignment_submissions 
+            WHERE assignment_id = ?
+            ORDER BY submitted_at DESC
+        ''', (assignment_id,))
+        return rows_to_list(cursor.fetchall())
+    finally:
+        conn.close()
+
+
+def get_student_submissions(student_id: str) -> List[Dict]:
+    """Get all submissions by a student"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT s.*, a.title as assignment_title, a.due_date, a.total_marks
+            FROM assignment_submissions s
+            JOIN class_assignments a ON s.assignment_id = a.assignment_id
+            WHERE s.student_id = ?
+            ORDER BY s.submitted_at DESC
+        ''', (student_id,))
+        return rows_to_list(cursor.fetchall())
+    finally:
+        conn.close()
+
+
+def grade_submission(submission_id: str, marks_obtained: float, feedback: str = None) -> Dict:
+    """Grade a submission"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # Try to update with updated_at column first
+        try:
+            cursor.execute('''
+                UPDATE assignment_submissions 
+                SET marks_obtained = ?, feedback = ?, status = 'graded', updated_at = ?
+                WHERE submission_id = ?
+            ''', (marks_obtained, feedback, now, submission_id))
+        except sqlite3.OperationalError:
+            # If updated_at column doesn't exist, update without it
+            cursor.execute('''
+                UPDATE assignment_submissions 
+                SET marks_obtained = ?, feedback = ?, status = 'graded'
+                WHERE submission_id = ?
+            ''', (marks_obtained, feedback, submission_id))
+        
+        conn.commit()
+        
+        return get_submission_by_id(submission_id)
+    finally:
+        conn.close()
+
+
+# ============ CLASS MEMBERS OPERATIONS ============
+
+def get_class_members(class_id: str) -> Dict:
+    """Get all members of a class: teachers, sub handlers, and students"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Get class advisors (class teachers)
+        cursor.execute('''
+            SELECT u.*, tc.is_class_teacher
+            FROM users u
+            JOIN teacher_classes tc ON u.user_id = tc.teacher_id
+            WHERE tc.class_id = ? AND tc.is_class_teacher = 1
+        ''', (class_id,))
+        advisors = rows_to_list(cursor.fetchall())
+        
+        # Get sub handlers (assistants)
+        cursor.execute('''
+            SELECT u.*, tc.is_class_teacher
+            FROM users u
+            JOIN teacher_classes tc ON u.user_id = tc.teacher_id
+            WHERE tc.class_id = ? AND tc.is_class_teacher = 0
+        ''', (class_id,))
+        sub_handlers = rows_to_list(cursor.fetchall())
+        
+        # Get students
+        cursor.execute('''
+            SELECT u.*, sc.roll_number, sc.attendance_percentage, sc.status
+            FROM users u
+            JOIN student_classes sc ON u.user_id = sc.student_id
+            WHERE sc.class_id = ?
+            ORDER BY sc.roll_number
+        ''', (class_id,))
+        students = rows_to_list(cursor.fetchall())
+        
+        return {
+            "advisors": advisors,
+            "sub_handlers": sub_handlers,
+            "students": students
+        }
+    finally:
+        conn.close()
+
+
+def get_class_advisors(class_id: str) -> List[Dict]:
+    """Get class advisors (class teachers) for a class"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT u.*
+            FROM users u
+            JOIN teacher_classes tc ON u.user_id = tc.teacher_id
+            WHERE tc.class_id = ? AND tc.is_class_teacher = 1
+        ''', (class_id,))
+        return rows_to_list(cursor.fetchall())
+    finally:
+        conn.close()
+
+
+def get_class_sub_handlers(class_id: str) -> List[Dict]:
+    """Get sub handlers (assistants) for a class"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT u.*
+            FROM users u
+            JOIN teacher_classes tc ON u.user_id = tc.teacher_id
+            WHERE tc.class_id = ? AND tc.is_class_teacher = 0
+        ''', (class_id,))
+        return rows_to_list(cursor.fetchall())
+    finally:
+        conn.close()
+
+
+def get_class_students_with_details(class_id: str) -> List[Dict]:
+    """Get students in a class with detailed information"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT u.*, sc.roll_number, sc.attendance_percentage, sc.status, sc.joined_at
+            FROM users u
+            JOIN student_classes sc ON u.user_id = sc.student_id
+            WHERE sc.class_id = ?
+            ORDER BY sc.roll_number
+        ''', (class_id,))
+        return rows_to_list(cursor.fetchall())
     finally:
         conn.close()
 

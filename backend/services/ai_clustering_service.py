@@ -12,6 +12,35 @@ from typing import List, Dict, Optional
 import re
 from collections import defaultdict, Counter
 import database as db
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+
+def _parse_datetime(date_str):
+    """Helper function to parse datetime strings consistently"""
+    if not date_str:
+        return datetime.now(timezone.utc)
+    
+    try:
+        # Handle ISO format with timezone
+        if date_str.endswith('Z'):
+            date_str = date_str[:-1] + '+00:00'
+        elif '+' not in date_str and date_str.count(':') == 2 and date_str.count('-') >= 2:
+            # Assume UTC if no timezone info
+            date_str = date_str + '+00:00'
+            
+        parsed_date = datetime.fromisoformat(date_str)
+        
+        # Ensure the datetime is timezone-aware
+        if parsed_date.tzinfo is None:
+            parsed_date = parsed_date.replace(tzinfo=timezone.utc)
+        
+        return parsed_date
+    except ValueError:
+        # Return current time if parsing fails
+        return datetime.now(timezone.utc)
 
 
 class AIClusteringService:
@@ -215,8 +244,16 @@ class AIClusteringService:
                 ai_summary += "These issues require immediate attention from the administration."
             
             # Determine trend (simplified)
-            recent_issues = [issue for issue in cluster if 
-                           (datetime.now(timezone.utc) - datetime.fromisoformat(issue['created_at'].replace('Z', '+00:00'))).days <= 7]
+            recent_issues = []
+            for issue in cluster:
+                try:
+                    issue_date = _parse_datetime(issue['created_at'])
+                    days_diff = (datetime.now(timezone.utc) - issue_date).days
+                    if days_diff <= 7:
+                        recent_issues.append(issue)
+                except ValueError:
+                    # If date parsing fails, skip this item
+                    continue
             
             if len(recent_issues) >= len(cluster) * 0.7:
                 trend = 'increasing'
@@ -241,8 +278,8 @@ class AIClusteringService:
                 "locations": locations[:5],  # Limit to 5 locations
                 "status": most_common_status,
                 "trend": trend,
-                "lastActivity": max(issue.get('updated_at', issue.get('created_at')) for issue in cluster),
-                "createdAt": min(issue.get('created_at') for issue in cluster),
+                "lastActivity": max(_parse_datetime(issue.get('updated_at', issue.get('created_at'))) for issue in cluster).isoformat(),
+                "createdAt": min(_parse_datetime(issue.get('created_at')) for issue in cluster).isoformat(),
                 "relatedIssues": [
                     {
                         "id": issue['issue_id'],
@@ -262,17 +299,191 @@ class AIClusteringService:
         
         return aggregated_issues
 
+    @staticmethod
+    def cluster_issues_from_list(items_list) -> List[Dict]:
+        """Cluster given list of issues and return aggregated results"""
+        
+        if len(items_list) < 2:
+            return []
+        
+        # Group items by similarity
+        clusters = []
+        processed_items = set()
+        
+        for i, item in enumerate(items_list):
+            if item.get('issue_id') in processed_items:
+                continue
+            
+            # Start a new cluster with this item
+            cluster_items = [item]
+            processed_items.add(item.get('issue_id'))
+            
+            # Find similar items
+            for j, other_item in enumerate(items_list):
+                if i != j and other_item.get('issue_id') not in processed_items:
+                    similarity = AIClusteringService.calculate_similarity(item, other_item)
+                    
+                    # If similarity is above threshold, add to cluster
+                    if similarity >= 0.6:  # 60% similarity threshold
+                        cluster_items.append(other_item)
+                        processed_items.add(other_item.get('issue_id'))
+            
+            # Only create cluster if it has multiple items
+            if len(cluster_items) >= 2:
+                clusters.append(cluster_items)
+        
+        # Convert clusters to aggregated format
+        aggregated_issues = []
+        
+        for cluster in clusters:
+            # Calculate cluster statistics
+            total_affected = sum(item.get('affected_count', 1) for item in cluster)
+            total_comments = 0  # Would need to count comments from database
+            
+            # Determine cluster category and locations
+            categories = [AIClusteringService.detect_issue_category(item) for item in cluster]
+            main_category = Counter(categories).most_common(1)[0][0]
+            
+            locations = list(set(item.get('location', '') for item in cluster if item.get('location')))
+            
+            # Calculate average sentiment
+            sentiments = [AIClusteringService.calculate_sentiment(item) for item in cluster]
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            
+            # Determine severity based on affected count and keywords
+            if total_affected >= 50 or any('critical' in item.get('description', '').lower() for item in cluster):
+                severity = 'critical'
+            elif total_affected >= 20 or any('urgent' in item.get('description', '').lower() for item in cluster):
+                severity = 'high'
+            elif total_affected >= 10:
+                severity = 'medium'
+            else:
+                severity = 'low'
+            
+            # Generate cluster title and summary
+            common_keywords = set()
+            for item in cluster:
+                keywords = AIClusteringService.extract_keywords(f"{item.get('title', '')} {item.get('description', '')}")
+                common_keywords.update(keywords)
+            
+            # Find most common words for title
+            title_words = []
+            for item in cluster:
+                title_words.extend(item.get('title', '').split())
+            
+            common_title_words = [word for word, count in Counter(title_words).most_common(3) if count > 1]
+            
+            if common_title_words:
+                cluster_title = f"{main_category.title()} Issues - {' '.join(common_title_words[:2]).title()}"
+            else:
+                cluster_title = f"{main_category.title()} Issues in {locations[0] if locations else 'Campus'}"
+            
+            # Generate AI summary
+            ai_summary = f"Multiple reports of {main_category} issues affecting {total_affected} students. "
+            if locations:
+                ai_summary += f"Primarily reported in: {', '.join(locations[:3])}. "
+            
+            status_counts = Counter(item.get('status', 'reported') for item in cluster)
+            most_common_status = status_counts.most_common(1)[0][0]
+            
+            if most_common_status == 'resolved':
+                ai_summary += "Most issues in this cluster have been resolved."
+            elif most_common_status == 'in_progress':
+                ai_summary += "Issues are currently being addressed by the maintenance team."
+            else:
+                ai_summary += "These issues require immediate attention from the administration."
+            
+            # Determine trend (simplified)
+            recent_items = []
+            for item in cluster:
+                try:
+                    item_date = _parse_datetime(item['created_at'])
+                    days_diff = (datetime.now(timezone.utc) - item_date).days
+                    if days_diff <= 7:
+                        recent_items.append(item)
+                except ValueError:
+                    # If date parsing fails, skip this item
+                    continue
+            
+            if len(recent_items) >= len(cluster) * 0.7:
+                trend = 'increasing'
+            elif len(recent_items) <= len(cluster) * 0.3:
+                trend = 'decreasing'
+            else:
+                trend = 'stable'
+            
+            # Create aggregated issue
+            agg_id = f"agg_{uuid.uuid4().hex[:12]}"
+            
+            aggregated_issue = {
+                "id": agg_id,
+                "title": cluster_title,
+                "aiSummary": ai_summary,
+                "severity": severity,
+                "relatedCount": len(cluster),
+                "totalComments": total_comments,
+                "totalAffected": total_affected,
+                "sentiment": round(avg_sentiment, 2),
+                "category": main_category.title(),
+                "locations": locations[:5],  # Limit to 5 locations
+                "status": most_common_status,
+                "trend": trend,
+                "lastActivity": max(_parse_datetime(item.get('updated_at', item.get('created_at'))) for item in cluster).isoformat(),
+                "createdAt": min(_parse_datetime(item.get('created_at')) for item in cluster).isoformat(),
+                "relatedIssues": [
+                    {
+                        "id": item.get('issue_id'),
+                        "title": item.get('title'),
+                        "status": item.get('status', 'reported'),
+                        "affected": item.get('affected_count', 1)
+                    }
+                    for item in cluster
+                ]
+            }
+            
+            aggregated_issues.append(aggregated_issue)
+        
+        # Sort by severity and affected count
+        severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+        aggregated_issues.sort(key=lambda x: (severity_order.get(x['severity'], 4), -x['totalAffected']))
+        
+        return aggregated_issues
+
 
 def run_ai_analysis() -> Dict:
     """Run AI analysis and return results"""
     try:
-        # Get fresh issues from database
+        # Get fresh issues and moments from database
         all_issues = db.get_issues(limit=1000)  # Get more issues for better clustering
+        all_moments = db.get_moments(limit=1000)  # Get moments as well
         
-        print(f"AI Analysis: Processing {len(all_issues)} issues")
+        print(f"AI Analysis: Processing {len(all_issues)} issues and {len(all_moments)} moments")
         
-        # Run clustering
-        aggregated_issues = AIClusteringService.cluster_issues()
+        # Convert moments to issue-like format for processing
+        formatted_moments = []
+        for moment in all_moments:
+            if moment.get('status') == 'approved':  # Only process approved moments
+                formatted_moments.append({
+                    'issue_id': moment.get('moment_id', f"mom_{uuid.uuid4().hex[:8]}"),
+                    'title': moment.get('title', ''),
+                    'description': moment.get('content', ''),
+                    'category': moment.get('moment_type', 'general'),
+                    'location': '',  # Moments don't have specific locations
+                    'status': moment.get('status', 'reported'),
+                    'affected_count': 0,  # We can calculate this based on reactions/comments
+                    'created_at': moment.get('created_at', datetime.now(timezone.utc).isoformat()),
+                    'updated_at': moment.get('updated_at', moment.get('created_at', datetime.now(timezone.utc).isoformat())),
+                    'user_id': moment.get('user_id'),
+                    'user_name': moment.get('user_name')
+                })
+        
+        # Combine issues and moments for analysis
+        all_complaints = all_issues + formatted_moments
+        
+        print(f"AI Analysis: Total {len(all_complaints)} items for clustering")
+        
+        # Run clustering on all complaints
+        aggregated_issues = AIClusteringService.cluster_issues_from_list(all_complaints)
         
         print(f"AI Analysis: Found {len(aggregated_issues)} clusters")
         
@@ -285,7 +496,7 @@ def run_ai_analysis() -> Dict:
             "clusters_found": len(aggregated_issues),
             "aggregated_issues": aggregated_issues,
             "analysis_time": datetime.now(timezone.utc).isoformat(),
-            "total_issues_processed": len(all_issues)
+            "total_issues_processed": len(all_complaints)
         }
     except Exception as e:
         print(f"AI Analysis failed: {e}")

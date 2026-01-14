@@ -9,8 +9,6 @@ function Login() {
   const [formData, setFormData] = useState({
     email: "",
     name: "",
-    department: "CSE",
-    year: "2",
     role: "student",
   });
   const [loading, setLoading] = useState(false);
@@ -25,29 +23,47 @@ function Login() {
       return;
     }
     
-    const isAdmin = formData.role === "admin" || formData.email.toLowerCase().includes('admin');
-    const isTeacher = formData.role === "teacher" || formData.email.toLowerCase().includes('teacher');
-    
-    let userRole = "student";
-    if (isAdmin) userRole = "admin";
-    else if (isTeacher) userRole = "teacher";
+    const userRole = formData.role;
 
     setLoading(true);
     
     try {
+      // Check if user is trying to access a role that doesn't match their account type
+      // Specific check for test credentials
+      if (formData.email === 'admin@cit-campus-connect.test' && userRole !== 'admin') {
+        throw new Error("Admin test account can only be used to login as admin");
+      } else if (formData.email === 'teacher@cit-campus-connect.test' && userRole !== 'teacher') {
+        throw new Error("Teacher test account can only be used to login as teacher");
+      } else if (formData.email === 'student@cit-campus-connect.test' && userRole !== 'student') {
+        throw new Error("Student test account can only be used to login as student");
+      }
+      
+      // Prepare request body based on user role
+      const requestBody = {
+        user_id: `user_${formData.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${Date.now().toString(36)}`,
+        email: formData.email,
+        name: formData.name,
+        picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(formData.name)}`,
+        role: userRole,
+      };
+      
+      // Add role-specific fields
+      if (userRole === 'admin') {
+        requestBody.department = 'Administration';
+      } else if (userRole === 'teacher') {
+        requestBody.department = 'Computer Science';
+        requestBody.class_info = 'Computer Science Faculty';
+      } else { // student
+        requestBody.department = 'Computer Science';
+        requestBody.section = 'A';
+        requestBody.year = 2;
+      }
+      
       const response = await fetch(`${BACKEND_URL}/api/auth/dev-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          user_id: `user_${formData.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${Date.now().toString(36)}`,
-          email: formData.email,
-          name: formData.name,
-          picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(formData.name)}`,
-          role: userRole,
-          department: formData.department,
-          year: parseInt(formData.year) || 2,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -56,6 +72,12 @@ function Login() {
       }
 
       const user = await response.json();
+      
+      // Double-check user role matches what was requested
+      if (user.role !== userRole) {
+        throw new Error(`Access denied: Your account is registered as ${user.role}, but you're trying to login as ${userRole}`);
+      }
+      
       localStorage.setItem("dev_user", JSON.stringify(user));
       
       if (user.session_token) {
@@ -98,6 +120,12 @@ function Login() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
+            <div className="text-xs text-gray-500 p-2 bg-blue-50 rounded-lg">
+              <p className="mb-1 font-medium">Test Credentials:</p>
+              <p>🔐 Admin: admin@cit-campus-connect.test</p>
+              <p>👨‍🏫 Teacher: teacher@cit-campus-connect.test</p>
+              <p>🎓 Student: student@cit-campus-connect.test</p>
+            </div>
             {/* Name */}
             <div>
               <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
@@ -128,43 +156,6 @@ function Login() {
                 className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
                 required
               />
-            </div>
-
-            {/* Department & Year */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1.5">
-                  <Building size={14} />
-                  Department
-                </label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
-                >
-                  <option value="CSE">CSE</option>
-                  <option value="ECE">ECE</option>
-                  <option value="IT">IT</option>
-                  <option value="Mechanical">Mech</option>
-                  <option value="Civil">Civil</option>
-                  <option value="EEE">EEE</option>
-                  <option value="AIML">AIML</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1.5 block">Year</label>
-                <select
-                  value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  className="w-full h-11 px-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-sm"
-                >
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </select>
-              </div>
             </div>
 
             {/* Role */}

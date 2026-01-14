@@ -59,7 +59,7 @@ function Landing() {
                 to="/login"
                 className="group flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-all"
               >
-                Get Started Free
+                Get Started
                 <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link

@@ -22,10 +22,75 @@ import class_management as cm
 # Import services
 from services.audit_service import AuditService
 from services.ai_clustering_service import run_ai_analysis
+from services.gemini_ai_service import generate_insights_with_gemini, moderate_content_with_gemini, get_gemini_service
 from services.ai_moderation_service import moderate_moment_content, moderate_comment_content
+from services.ai_integration_service import moderate_moment_with_integrated_ai, moderate_comment_with_integrated_ai, generate_insights_with_fallback
+import threading
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+
+# Global variable to store last analysis time
+last_analysis_time = None
+
+def run_automated_ai_analysis():
+    """Run automated AI analysis periodically"""
+    global last_analysis_time
+    try:
+        logger.info("Running automated AI analysis...")
+        
+        # Get fresh issues and moments from database
+        all_issues = db.get_issues(limit=1000)
+        all_moments = db.get_moments(limit=1000)
+        
+        # Use integrated AI service for analysis
+        aggregated_issues = generate_insights_with_fallback(all_issues, all_moments)
+        clusters_found = len(aggregated_issues)
+        total_processed = len(all_issues) + len(all_moments)
+        
+        last_analysis_time = datetime.now(timezone.utc)
+        logger.info(f"Automated AI analysis completed: {clusters_found} clusters found")
+        
+        return {
+            "success": True,
+            "clusters_found": clusters_found,
+            "aggregated_issues": aggregated_issues,
+            "analysis_time": last_analysis_time.isoformat(),
+            "total_issues_processed": total_processed
+        }
+    except Exception as e:
+        logger.error(f"Error running automated AI analysis: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "clusters_found": 0,
+            "aggregated_issues": [],
+            "analysis_time": datetime.now(timezone.utc).isoformat()
+        }
+
+def automated_analysis_worker():
+    """Background worker to run automated analysis periodically"""
+    while True:
+        try:
+            # Run analysis every hour
+            run_automated_ai_analysis()
+            # Sleep for 1 hour (3600 seconds)
+            time.sleep(3600)
+        except Exception as e:
+            logger.error(f"Error in automated analysis worker: {e}")
+            # If there's an error, sleep for 5 minutes before retrying
+            time.sleep(300)
+
+
+# Start the automated analysis worker in a background thread
+analysis_thread = threading.Thread(target=automated_analysis_worker, daemon=True)
+analysis_thread.start()
+logger.info("Automated AI analysis worker started")
 
 # Create uploads directory
 UPLOAD_DIR = ROOT_DIR / "uploads"
@@ -286,25 +351,59 @@ async def dev_login(request: Request, response: Response):
             "name": name,
             "picture": body.get("picture"),
             "department": body.get("department"),
-            "year": body.get("year")
+            "section": body.get("section"),
+            "year": body.get("year"),
+            "class_info": body.get("class_info"),
+            "is_active": body.get("is_active", True)
         }
         
         # Only update role if explicitly provided
         if body.get("role"):
             update_data["role"] = body.get("role")
         
+        # Handle role-specific fields
+        if body.get("role") == "teacher":
+            # Teachers might have class_info instead of year/section
+            update_data["class_info"] = body.get("class_info") or update_data.get("class_info")
+            update_data["department"] = body.get("department") or update_data.get("department")
+        elif body.get("role") == "admin":
+            # Admins have minimal data
+            update_data["department"] = body.get("department") or update_data.get("department")
+        else:  # student
+            update_data["section"] = body.get("section") or update_data.get("section")
+            update_data["year"] = body.get("year") or update_data.get("year")
+        
         db.update_user(user_id, update_data)
     else:
-        db.create_user({
+        # Prepare user data with new fields
+        user_data = {
             "user_id": user_id,
             "email": email,
             "name": name,
             "picture": body.get("picture"),
             "role": body.get("role", "student"),
             "department": body.get("department"),
+            "section": body.get("section"),
             "year": body.get("year"),
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
+            "class_info": body.get("class_info"),
+            "is_active": body.get("is_active", True),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Handle role-specific fields
+        if body.get("role") == "teacher":
+            # Teachers might have class_info instead of year/section
+            user_data["class_info"] = body.get("class_info") or f"{user_data['department']} Faculty"
+            user_data["department"] = body.get("department") or user_data["department"]
+        elif body.get("role") == "admin":
+            # Admins have minimal data
+            user_data["department"] = body.get("department") or "Administration"
+        else:  # student
+            user_data["section"] = body.get("section") or "A"
+            user_data["year"] = body.get("year") or 1
+        
+        db.create_user(user_data)
     
     session_token = f"dev_session_{uuid.uuid4().hex[:24]}"
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
@@ -401,9 +500,9 @@ async def create_moment(request: Request):
     
     logger.info(f"Creating moment {moment_id}: '{moment_doc.get('title', 'No title')}'")
     
-    # Run AI content moderation BEFORE creating the moment
+    # Run integrated AI content moderation BEFORE creating the moment
     try:
-        flag_id = moderate_moment_content(moment_doc)
+        flag_id = moderate_moment_with_integrated_ai(moment_doc)
         if flag_id:
             logger.info(f"Moment {moment_id} flagged for moderation: {flag_id}")
             # Set status to pending_review for flagged content
@@ -543,9 +642,9 @@ async def create_moment_with_image(
     logger.info(f"📝 Moment type: '{moment_type}'")
     logger.info(f"📝 Tags: {tags_list}")
     
-    # Run AI content moderation BEFORE creating the moment
+    # Run integrated AI content moderation BEFORE creating the moment
     try:
-        flag_id = moderate_moment_content(moment_doc)
+        flag_id = moderate_moment_with_integrated_ai(moment_doc)
         if flag_id:
             logger.info(f"Moment {moment_id} flagged for moderation: {flag_id}")
             moment_doc["status"] = "pending_review"
@@ -2298,11 +2397,25 @@ async def run_ai_analysis_endpoint(request: Request):
         
         logger.info(f"AI analysis requested by: {user['name']} ({user['user_id']})")
         
-        # Run the analysis
-        result = run_ai_analysis()
+        # Get fresh issues and moments from database
+        all_issues = db.get_issues(limit=1000)
+        all_moments = db.get_moments(limit=1000)
         
-        if result["success"]:
-            logger.info(f"AI analysis completed: {result['clusters_found']} clusters found")
+        # Use integrated AI service for analysis
+        aggregated_issues = generate_insights_with_fallback(all_issues, all_moments)
+        clusters_found = len(aggregated_issues)
+        total_processed = len(all_issues) + len(all_moments)
+        
+        analysis_result = {
+            "success": True,
+            "clusters_found": clusters_found,
+            "aggregated_issues": aggregated_issues,
+            "analysis_time": datetime.now(timezone.utc).isoformat(),
+            "total_issues_processed": total_processed
+        }
+        
+        if analysis_result["success"]:
+            logger.info(f"AI analysis completed: {analysis_result['clusters_found']} clusters found")
             
             # Log to audit trail
             AuditService.log_action(
@@ -2311,14 +2424,14 @@ async def run_ai_analysis_endpoint(request: Request):
                 action_type="run_ai_analysis",
                 entity_type="issues",
                 entity_id="all",
-                new_value=f"{result['clusters_found']} clusters found",
+                new_value=f"{analysis_result['clusters_found']} clusters found",
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent")
             )
         else:
-            logger.error(f"AI analysis failed: {result['error']}")
+            logger.error(f"AI analysis failed: {analysis_result.get('error')}")
         
-        return result
+        return analysis_result
         
     except HTTPException:
         raise
@@ -2344,22 +2457,20 @@ async def get_aggregated_issues_endpoint(request: Request):
         if user.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
         
-        # Run analysis to get current clusters
-        result = run_ai_analysis()
+        # Get fresh issues and moments from database
+        all_issues = db.get_issues(limit=1000)
+        all_moments = db.get_moments(limit=1000)
         
-        if result["success"]:
-            return {
-                "aggregated_issues": result["aggregated_issues"],
-                "total_clusters": result["clusters_found"],
-                "last_updated": result["analysis_time"]
-            }
-        else:
-            return {
-                "aggregated_issues": [],
-                "total_clusters": 0,
-                "error": result.get("error")
-            }
+        # Use integrated AI service for analysis
+        aggregated_issues = generate_insights_with_fallback(all_issues, all_moments)
+        clusters_found = len(aggregated_issues)
         
+        return {
+            "aggregated_issues": aggregated_issues,
+            "total_clusters": clusters_found,
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        }
+    
     except HTTPException:
         raise
     except Exception as e:
@@ -3339,6 +3450,297 @@ async def auto_classify_student(request: Request):
         raise HTTPException(status_code=400, detail="Could not classify student from email")
     
     return result
+
+
+# ============ TEACHER ASSIGNMENTS ============
+
+@api_router.get("/teacher/assignments")
+@require_teacher
+async def get_teacher_assignments(request: Request, status: str = None):
+    """Get assignments for teacher's active class"""
+    teacher = request.state.current_teacher
+    active_class_id = cm.get_teacher_active_class(teacher["user_id"])
+    
+    if not active_class_id:
+        raise HTTPException(status_code=400, detail="No active class selected")
+    
+    assignments = cm.get_class_assignments(active_class_id, status=status)
+    return {"assignments": assignments}
+
+
+@api_router.post("/teacher/assignments")
+@require_teacher
+async def create_teacher_assignment(request: Request):
+    """Create assignment for teacher's active class"""
+    teacher = request.state.current_teacher
+    active_class_id = cm.get_teacher_active_class(teacher["user_id"])
+    
+    if not active_class_id:
+        raise HTTPException(status_code=400, detail="No active class selected")
+    
+    body = await request.json()
+    title = body.get("title")
+    description = body.get("description")
+    subject = body.get("subject")
+    due_date = body.get("due_date")
+    total_marks = body.get("total_marks")
+    
+    if not title or not description or not due_date:
+        raise HTTPException(status_code=400, detail="Title, description, and due_date required")
+    
+    assignment = cm.create_assignment(
+        class_id=active_class_id,
+        teacher_id=teacher["user_id"],
+        teacher_name=teacher["name"],
+        title=title,
+        description=description,
+        subject=subject,
+        due_date=due_date,
+        total_marks=total_marks
+    )
+    
+    return assignment
+
+
+@api_router.put("/teacher/assignments/{assignment_id}")
+@require_teacher
+async def update_teacher_assignment(assignment_id: str, request: Request):
+    """Update an assignment"""
+    teacher = request.state.current_teacher
+    body = await request.json()
+    
+    # Verify ownership
+    existing = cm.get_assignment_by_id(assignment_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if existing["teacher_id"] != teacher["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    updated = cm.update_assignment(
+        assignment_id=assignment_id,
+        title=body.get("title"),
+        description=body.get("description"),
+        subject=body.get("subject"),
+        due_date=body.get("due_date"),
+        total_marks=body.get("total_marks"),
+        status=body.get("status")
+    )
+    
+    return updated
+
+
+@api_router.delete("/teacher/assignments/{assignment_id}")
+@require_teacher
+async def delete_teacher_assignment(assignment_id: str, request: Request):
+    """Delete an assignment"""
+    teacher = request.state.current_teacher
+    
+    # Verify ownership
+    existing = cm.get_assignment_by_id(assignment_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if existing["teacher_id"] != teacher["user_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    success = cm.delete_assignment(assignment_id)
+    return {"success": success}
+
+
+@api_router.get("/teacher/assignments/{assignment_id}/submissions")
+@require_teacher
+async def get_assignment_submissions(assignment_id: str, request: Request):
+    """Get all submissions for an assignment"""
+    teacher = request.state.current_teacher
+    
+    assignment = cm.get_assignment_by_id(assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    # Verify teacher has access to this assignment's class
+    if not cm.is_teacher_of_class(teacher["user_id"], assignment["class_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    submissions = cm.get_assignment_submissions(assignment_id)
+    return {"submissions": submissions}
+
+
+@api_router.post("/teacher/assignments/{assignment_id}/grade-submission")
+@require_teacher
+async def grade_student_submission(assignment_id: str, request: Request):
+    """Grade a student's assignment submission"""
+    teacher = request.state.current_teacher
+    
+    assignment = cm.get_assignment_by_id(assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    # Verify teacher has access to this assignment's class
+    if not cm.is_teacher_of_class(teacher["user_id"], assignment["class_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    body = await request.json()
+    submission_id = body.get("submission_id")
+    marks_obtained = body.get("marks_obtained")
+    feedback = body.get("feedback")
+    
+    if not submission_id or marks_obtained is None:
+        raise HTTPException(status_code=400, detail="Submission ID and marks obtained required")
+    
+    graded_submission = cm.grade_submission(submission_id, marks_obtained, feedback)
+    return graded_submission
+
+
+# ============ STUDENT ASSIGNMENTS ============
+
+@api_router.get("/student/assignments")
+async def get_student_assignments(request: Request):
+    """Get assignments for student's class"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    class_info = cm.get_student_class(user["user_id"])
+    if not class_info:
+        return {"assignments": [], "message": "Not assigned to any class"}
+    
+    assignments = cm.get_class_assignments(class_info["class_id"])
+    return {"assignments": assignments, "class": class_info}
+
+
+@api_router.post("/student/assignments/{assignment_id}/submit")
+async def submit_assignment(assignment_id: str, request: Request):
+    """Submit an assignment"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    assignment = cm.get_assignment_by_id(assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    # Verify student is in the assignment's class
+    if not cm.is_student_in_class(user["user_id"], assignment["class_id"]):
+        raise HTTPException(status_code=403, detail="Not authorized to submit to this assignment")
+    
+    body = await request.json()
+    file_path = body.get("file_path")
+    
+    # Check if assignment is overdue
+    from datetime import datetime
+    due_date = datetime.fromisoformat(assignment["due_date"].replace('Z', '+00:00'))
+    if datetime.now(due_date.tzinfo) > due_date:
+        raise HTTPException(status_code=400, detail="Assignment is overdue")
+    
+    submission = cm.submit_assignment(
+        assignment_id=assignment_id,
+        student_id=user["user_id"],
+        student_name=user["name"],
+        file_path=file_path
+    )
+    
+    return submission
+
+
+@api_router.get("/student/assignment-submissions")
+async def get_student_submissions(request: Request):
+    """Get all submissions by the student"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    submissions = cm.get_student_submissions(user["user_id"])
+    return {"submissions": submissions}
+
+
+# ============ STUDENT CLASS MEMBERS ============
+
+@api_router.get("/student/class-members")
+async def get_student_class_members(request: Request):
+    """Get all members of the student's class: advisors, sub handlers, and students"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    class_info = cm.get_student_class(user["user_id"])
+    if not class_info:
+        raise HTTPException(status_code=404, detail="Not assigned to any class")
+    
+    members = cm.get_class_members(class_info["class_id"])
+    return members
+
+
+# ============ CLASS MEMBERS ============
+
+@api_router.get("/class/{class_id}/members")
+async def get_class_members(class_id: str, request: Request):
+    """Get all members of a class: advisors, sub handlers, and students"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Verify user has access to this class
+    is_teacher = cm.is_teacher_of_class(user["user_id"], class_id)
+    is_student = cm.is_student_in_class(user["user_id"], class_id)
+    
+    if not (is_teacher or is_student or user.get("role") == "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to view class members")
+    
+    members = cm.get_class_members(class_id)
+    return {"members": members}
+
+
+@api_router.get("/class/{class_id}/advisors")
+async def get_class_advisors(class_id: str, request: Request):
+    """Get class advisors (class teachers)"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Verify user has access to this class
+    is_teacher = cm.is_teacher_of_class(user["user_id"], class_id)
+    is_student = cm.is_student_in_class(user["user_id"], class_id)
+    
+    if not (is_teacher or is_student or user.get("role") == "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to view class advisors")
+    
+    advisors = cm.get_class_advisors(class_id)
+    return {"advisors": advisors}
+
+
+@api_router.get("/class/{class_id}/sub-handlers")
+async def get_class_sub_handlers(class_id: str, request: Request):
+    """Get class sub handlers (assistants)"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Verify user has access to this class
+    is_teacher = cm.is_teacher_of_class(user["user_id"], class_id)
+    is_student = cm.is_student_in_class(user["user_id"], class_id)
+    
+    if not (is_teacher or is_student or user.get("role") == "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to view class sub handlers")
+    
+    sub_handlers = cm.get_class_sub_handlers(class_id)
+    return {"sub_handlers": sub_handlers}
+
+
+@api_router.get("/class/{class_id}/students")
+async def get_class_students(class_id: str, request: Request):
+    """Get students in a class with detailed information"""
+    user = await get_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Verify user has access to this class
+    is_teacher = cm.is_teacher_of_class(user["user_id"], class_id)
+    is_student = cm.is_student_in_class(user["user_id"], class_id)
+    
+    if not (is_teacher or is_student or user.get("role") == "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to view class students")
+    
+    students = cm.get_class_students_with_details(class_id)
+    return {"students": students}
 
 
 # ============ CORS AND STATIC FILES ============

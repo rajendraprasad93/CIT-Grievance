@@ -7,9 +7,22 @@ and automatically flags posts that violate community guidelines.
 
 import uuid
 import re
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 import database as db
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+def get_gemini_moderation_result(content: str, title: str = "", author_role: str = "student") -> Optional[Dict]:
+    """Get moderation result from Gemini AI if available"""
+    # Since we have a circular import issue, we'll return None
+    # The actual Gemini integration will be handled in the server
+    return None
 
 
 class AIContentModerationService:
@@ -63,6 +76,7 @@ class AIContentModerationService:
     def analyze_content(content: str, title: str = "", author_role: str = "student") -> Dict:
         """
         Analyze content for inappropriate material and return moderation result
+        Uses Gemini AI when available, falls back to keyword-based analysis
         
         Returns:
         {
@@ -84,6 +98,19 @@ class AIContentModerationService:
                 "keywords_found": []
             }
         
+        # Try to use Gemini AI for analysis if available
+        gemini_result = get_gemini_moderation_result(content, title, author_role)
+        if gemini_result:
+            return {
+                "is_flagged": gemini_result.get('is_flagged', False),
+                "risk_category": gemini_result.get('risk_category', 'none'),
+                "risk_severity": gemini_result.get('risk_severity', 'low'),
+                "confidence_score": gemini_result.get('confidence_score', 0.0),
+                "reasoning": gemini_result.get('reasoning', 'Gemini AI analysis'),
+                "keywords_found": gemini_result.get('keywords_identified', [])
+            }
+        
+        # Fall back to keyword-based analysis
         # Combine title and content for analysis
         full_text = f"{title} {content}".lower().strip()
         
