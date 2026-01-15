@@ -2,6 +2,7 @@
 
 **Hosted Link**: https://cit-campus-connect.web.app
 
+**This is Mono-Repo of the MVP that can be hosted locally.**
 
 A full-stack campus community platform for students to share moments, report issues, discover opportunities, and connect with peers.
 
