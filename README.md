@@ -2,6 +2,10 @@
 
 **Hosted Link (Production)**: https://cit-campus-connect.web.app
 
+**One Page Description** : https://drive.google.com/file/d/1KD0CEdUxvbdRgHJ7Z7Z6vlIVdXfcbWt9/view?usp=drive_link
+
+**Architecture Diagrams** : https://shorturl.at/aDYIj
+
 **Repository Type**: Monorepo (Frontend + Backend)
 
 CIT Campus Connect is a full-stack campus community platform that enables students to share moments, report issues, discover opportunities, and connect with peers.
