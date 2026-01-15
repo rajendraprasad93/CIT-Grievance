@@ -1,5 +1,8 @@
 # CIT Campus Connect 🎓
 
+**Hosted Link**: https://cit-campus-connect.web.app
+
+
 A full-stack campus community platform for students to share moments, report issues, discover opportunities, and connect with peers.
 
 ![React](https://img.shields.io/badge/React-19.0-blue?logo=react)
