@@ -4,7 +4,7 @@
 
 **One Page Description** : [https://drive.google.com/file/d/1KD0CEdUxvbdRgHJ7Z7Z6vlIVdXfcbWt9/view?usp=drive_link](https://drive.google.com/file/d/1ICzz45LJdD0ekBYwxyzRtImqjr8r8C0y/view?usp=drive_link)
 
-**Architecture Diagrams** : https://eashwar-kumar-t.github.io/campus-connect
+**Architecture Diagrams** : [https://shorturl.at/aDYIj](https://eashwar-kumar-t.github.io/campus-connect)
 
 **Repository Type**: Monorepo (Frontend + Backend)
 
