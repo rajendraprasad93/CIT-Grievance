@@ -1,43 +1,130 @@
 # CIT Campus Connect 🎓
 
-A full-stack campus community platform for students to share moments, report issues, discover opportunities, and connect with peers.
+**Hosted Link (Production)**: https://cit-campus-connect.web.app
 
-![React](https://img.shields.io/badge/React-19.0-blue?logo=react)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green?logo=fastapi)
-![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green?logo=mongodb)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-blue?logo=tailwindcss)
+**One Page Description** : [https://drive.google.com/file/d/1KD0CEdUxvbdRgHJ7Z7Z6vlIVdXfcbWt9/view?usp=drive_link](https://drive.google.com/file/d/1ICzz45LJdD0ekBYwxyzRtImqjr8r8C0y/view?usp=drive_link)
+
+**Architecture Diagrams** : [https://shorturl.at/aDYIj](https://eashwar-kumar-t.github.io/campus-connect)
+
+**Repository Type**: Monorepo (Frontend + Backend)
+
+CIT Campus Connect is a full-stack campus community platform that enables students to share moments, report issues, discover opportunities, and connect with peers.
+
+This repository contains the **original MVP monorepo**, which was **initially designed for local development** and was later **migrated and deployed to a production-grade Google Cloud Platform (GCP) environment**, while fully retaining local development support.
+
+---
+
+## Overview
+
+CIT Campus Connect follows a **modern full-stack architecture** with a clear separation of concerns between frontend, backend, and data layers.  
+The project demonstrates a complete lifecycle from **local MVP development** to a **cloud-native, scalable production deployment**.
+
+---
 
 ## Features
 
-- **Moments Feed** - Share campus life updates, ask for help, post opportunities
-- **Issue Tracker** - Report and track campus issues with community voting
-- **Opportunities Board** - Discover internships, scholarships, and events
-- **AI Image Analysis** - Auto-fill forms using Gemini AI vision
-- **Global Search** - Search moments, people, and opportunities
-- **User Profiles** - View activity, achievements, and reputation
-- **Real-time Comments** - Engage with the community
+- **Moments Feed** – Share campus updates, ask for help, post opportunities
+- **Issue Tracker** – Report and track campus issues with community voting
+- **Opportunities Board** – Discover internships, scholarships, and events
+- **AI Image Analysis** – Auto-fill forms using Google Gemini Vision AI
+- **Global Search** – Search moments, users, and opportunities
+- **User Profiles** – Activity history, achievements, and reputation
+- **Real-time Comments** – Engage with posts and discussions
+
+---
 
 ## Tech Stack
 
-**Frontend:**
+### Frontend
 - React 19 with React Router
-- TailwindCSS + Radix UI components
-- Framer Motion animations
-- Axios for API calls
+- TailwindCSS + Radix UI
+- Framer Motion (animations)
+- Axios for API communication
 
-**Backend:**
+### Backend
 - FastAPI (Python)
 - MongoDB with Motor (async driver)
-- Google Gemini AI for image analysis
+- Google Gemini AI (Vision)
 - JWT-based authentication
 
-## Quick Start
+### Cloud & Infrastructure (Production)
+- Firebase Hosting (Frontend)
+- Google Cloud Run (Backend)
+- Google Cloud Storage (Media & assets)
+- Managed cloud database services
+- Google Cloud IAM, Logging, and Monitoring
+
+---
+
+## Cloud Deployment & Architecture (Production)
+
+CIT Campus Connect was migrated from a local-first MVP to **Google Cloud Platform (GCP)** to support:
+
+- Scalability
+- Security
+- High availability
+- Observability
+- Cost-efficient serverless execution
+
+### Production Architecture Summary
+
+- **Frontend**
+  - React application deployed as static assets
+  - Served via Firebase Hosting with global CDN
+
+- **Backend API**
+  - FastAPI backend containerized and deployed on Google Cloud Run
+  - Stateless, auto-scaling execution
+  - Secure HTTPS endpoints
+
+- **Database**
+  - Production data stored in managed cloud databases
+  - Private access restricted to backend services
+
+- **Media Storage**
+  - User-uploaded files and images stored in Google Cloud Storage
+
+- **Authentication & Security**
+  - JWT-based authentication
+  - IAM-controlled service access
+  - Secure environment configuration and secrets
+
+- **Observability**
+  - Centralized logging
+  - Monitoring and metrics
+  - Error reporting for runtime diagnostics
+
+---
+
+## Deployment Modes
+
+### Local Development Mode
+Used for feature development, testing, and rapid iteration.
+
+- Frontend runs locally on `http://localhost:3000`
+- Backend runs locally on `http://localhost:5000`
+- MongoDB runs locally or via MongoDB Atlas
+- Environment variables loaded from `.env` files
+
+### Cloud Production Mode
+Used for real users and live traffic.
+
+- Frontend served via Firebase Hosting
+- Backend runs on Google Cloud Run
+- Databases and storage are fully managed
+- Secure networking, IAM, logging, and monitoring enabled
+
+---
+
+## Quick Start (Local Development)
 
 ### Prerequisites
 
 - Node.js 18+
 - Python 3.10+
 - MongoDB (local or Atlas)
+
+---
 
 ### 1. Clone the repository
 
