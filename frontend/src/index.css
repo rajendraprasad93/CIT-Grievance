@@ -122,6 +122,48 @@ code {
     animation: slideIn 0.3s ease-out;
 }
 
+/* Floating animations for landing page */
+@keyframes float {
+    0%, 100% {
+        transform: translate(-50%, -50%) translateY(0px);
+    }
+    50% {
+        transform: translate(-50%, -50%) translateY(-20px);
+    }
+}
+
+@keyframes float-delayed {
+    0%, 100% {
+        transform: rotate(3deg) translateY(0px);
+    }
+    50% {
+        transform: rotate(3deg) translateY(-15px);
+    }
+}
+
+@keyframes float-slow {
+    0%, 100% {
+        transform: rotate(-3deg) translateY(0px);
+    }
+    50% {
+        transform: rotate(-3deg) translateY(-12px);
+    }
+}
+
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+    animation: float-delayed 7s ease-in-out infinite;
+    animation-delay: 1s;
+}
+
+.animate-float-slow {
+    animation: float-slow 8s ease-in-out infinite;
+    animation-delay: 2s;
+}
+
 @layer utilities {
     .font-heading {
         font-family: 'Poppins', sans-serif;
